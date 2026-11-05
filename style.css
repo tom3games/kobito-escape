@@ -1,0 +1,109 @@
+[hidden],.hidden{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:100%;background:#2b2319;touch-action:manipulation}
+body{margin:0;height:100svh;overflow:hidden;position:relative;color:#201a12;font-family:"BIZ UDPGothic",system-ui,sans-serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;background:transparent}
+button,a{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:none}
+:root{--green:#00a65a;--green-d:#00723e;--paper:#f8f2e0;--ink:#241c12;--mint:#7fd5bd;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
+#view{position:fixed;inset:0}#view canvas{display:block;width:100%;height:100%;touch-action:none}
+#speedfx,#hitflash,#danger{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+#hitflash{opacity:0;box-shadow:inset 0 0 90px 32px #fff5d2}
+#danger{opacity:0;box-shadow:inset 0 0 74px 18px #e13a1f}
+section{position:fixed;inset:0;z-index:5}
+
+/* タイトル: 非常口の緑の板 */
+#title{display:flex;flex-direction:column;padding:calc(18px + var(--safe-t)) 18px calc(16px + var(--safe-b));pointer-events:none}
+#title>*{pointer-events:auto}
+.plate{background:var(--green);color:#f6fff8;border:5px solid #f6fff8;outline:3px solid #0a5d36;padding:12px 16px 14px;display:flex;align-items:center;gap:12px;transform:rotate(-1.4deg);box-shadow:0 3px 10px rgba(0,0,0,.4);align-self:flex-start;max-width:100%}
+.plate-man{width:64px;height:76px;flex:none;color:#f6fff8}
+h1{margin:0;font-weight:700;font-size:clamp(26px,8.6vw,36px);line-height:1.14;letter-spacing:.01em}
+h1 span{display:block}
+h1 span:last-child{font-size:1.32em}
+.note{margin:14px 0 0 auto;background:var(--paper);padding:9px 12px;font-family:"Klee One",serif;font-weight:600;font-size:15.5px;line-height:1.45;width:min(70%,270px);text-wrap:balance;transform:rotate(1.6deg);box-shadow:0 3px 9px rgba(0,0,0,.4)}
+.t-bottom{margin-top:auto;display:flex;flex-direction:column;gap:12px}
+.go{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--green);color:#f6fff8;font-weight:700;font-size:23px;min-height:64px;padding:8px 20px;border:4px solid #f6fff8;box-shadow:0 6px 0 var(--green-d),0 10px 24px rgba(0,0,0,.4)}
+.go svg{width:34px;height:40px}
+.go:active{transform:translateY(5px);box-shadow:0 1px 0 var(--green-d)}
+.go.small{font-size:18px;min-height:50px;padding:6px 18px;border-width:3px;box-shadow:0 4px 0 var(--green-d)}
+.small-row{display:flex;gap:18px;justify-content:center;color:#fff;font-size:15px;text-shadow:0 1px 3px #000}
+.small-row button{min-height:44px;padding:0 6px}
+
+.tag{background:#bb8f5c;color:#2a1a0c;font-weight:700;font-size:19px;min-height:50px;padding:6px 22px;border-radius:3px;background-image:repeating-linear-gradient(0deg,rgba(96,62,28,.16) 0 1px,transparent 1px 5px);box-shadow:0 2px 6px rgba(0,0,0,.45);transform:rotate(-.5deg);font-family:"BIZ UDPGothic",sans-serif}
+.tag:active{transform:translateY(2px)}
+/* メモ（遊び方・一時停止） */
+#how,#pause{display:grid;place-items:center;background:rgba(24,18,10,.55);padding:18px}
+.memo{position:relative;background:var(--paper);width:min(100%,370px);max-height:calc(100svh - 36px);padding:26px 20px 14px;font-family:"Klee One",serif;font-weight:600;transform:rotate(-.7deg);box-shadow:0 8px 28px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.memo.tiny{width:250px;align-items:center;gap:8px}
+.magnet{position:absolute;left:50%;top:-14px;width:32px;height:32px;margin-left:-16px;background:#c8392e;border-radius:50%;box-shadow:inset -4px -5px 0 rgba(0,0,0,.2),0 3px 6px rgba(0,0,0,.45)}
+.memo h2{margin:0 0 10px;font-size:23px}
+.memo ol{margin:0;padding:0;list-style:none;font-size:15.5px;line-height:1.5;display:flex;flex-direction:column;gap:9px;min-height:0;overflow:hidden}
+.memo li{display:flex;gap:9px;align-items:flex-start}
+.memo li svg{width:34px;height:34px;flex:none}
+.memo li b{color:#b5271a}
+.memo .tag{margin:12px 0 8px}
+.credit{margin:0;font:400 10.5px/1.4 "BIZ UDPGothic",sans-serif;color:#6d6251}
+.txt{min-height:40px;font-size:14px;text-decoration:underline}
+
+/* 遊び中 */
+#hud{pointer-events:none}
+#hud>button,#hud .stick{pointer-events:auto}
+#plasters{position:absolute;left:10px;top:calc(10px + var(--safe-t));display:flex;gap:0}
+.pl{width:44px;height:20px;background:#e6bd95;position:relative;margin-right:-5px;transition:transform .3s,opacity .3s;box-shadow:0 1px 3px rgba(0,0,0,.5);overflow:hidden}
+.pl::after{content:"";position:absolute;left:14px;right:14px;top:3px;bottom:3px;background:#f7e6d0}
+.pl:nth-child(1){transform:rotate(-8deg)}.pl:nth-child(2){transform:rotate(5deg)}.pl:nth-child(3){transform:rotate(-3deg)}
+.pl.off{opacity:0;transform:translateY(30px) rotate(40deg)}
+.sign{position:absolute;left:50%;top:calc(38px + var(--safe-t));transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:var(--green);color:#f6fff8;border:2.5px solid #f6fff8;padding:4px 10px 4px 6px;min-height:50px;box-shadow:0 2px 6px rgba(0,0,0,.4);white-space:nowrap}
+.man{width:26px;height:32px}
+.arw{width:26px;height:26px;fill:#fff}
+.sign-txt{display:flex;flex-direction:column;line-height:1.14;font-size:12px}
+.sign-txt b{font-size:14.5px}
+.timer{position:absolute;right:10px;top:calc(8px + var(--safe-t));min-width:64px;height:30px;background:#20231f;color:#b6f0b0;border:2px solid #d9d4c4;font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;letter-spacing:.04em;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.say{position:absolute;left:12px;right:12px;top:calc(100px + var(--safe-t));text-align:center;font-weight:700;font-size:21px;line-height:1.25;color:#fff7a8;-webkit-text-stroke:5px #1d1a12;paint-order:stroke fill;text-shadow:0 2px 0 #1d1a12}
+.say small{display:block;font-size:13px;color:#fff;-webkit-text-stroke:3.5px #1d1a12;paint-order:stroke fill}
+.miss{position:absolute;right:26px;bottom:calc(190px + var(--safe-b));font-weight:700;font-size:15px;color:#fff;-webkit-text-stroke:3.5px #1d1a12;paint-order:stroke fill;animation:mf .8s ease-out both}
+@keyframes mf{from{opacity:1}to{opacity:0;transform:translateY(-14px)}}
+.threat{position:absolute;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px;filter:drop-shadow(0 0 5px #ff3b1f) drop-shadow(0 2px 2px #000)}
+.threat svg{width:100%;height:100%}
+.stick{position:absolute;left:20px;bottom:calc(30px + var(--safe-b));width:128px;height:128px;border-radius:50%;background:rgba(255,250,235,.16);border:3px dashed rgba(255,250,235,.72);touch-action:none}
+.knob{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;background:#f2eddf;box-shadow:inset 0 0 0 5px #d9d1bc,0 3px 7px rgba(0,0,0,.5);display:grid;grid-template-columns:9px 9px;grid-auto-rows:9px;gap:6px;place-content:center}
+.knob i{background:#4a4336;border-radius:50%}
+.stick.pulse{animation:pl 1s ease-in-out infinite}
+@keyframes pl{50%{box-shadow:0 0 0 12px rgba(255,255,255,.3)}}
+.floss{position:absolute;right:20px;bottom:calc(34px + var(--safe-b));width:112px;height:136px;background:var(--mint);border:3px solid #123c33;box-shadow:0 7px 0 #2f8a74,0 10px 18px rgba(0,0,0,.45);display:block;overflow:visible;touch-action:none;border-radius:14px 14px 22px 22px}
+.floss .lid{position:absolute;left:-3px;right:-3px;top:-3px;height:46px;background:#f4faf7;border:3px solid #123c33;border-radius:14px 14px 4px 4px}
+.floss .cut{position:absolute;left:36px;width:34px;height:8px;top:-7px;background:#8c9aa3;border:2px solid #123c33}
+.floss small{position:absolute;left:0;right:0;bottom:30px;text-align:center;font-weight:700;font-size:18px;color:#123c33;letter-spacing:.04em}
+.floss .thread{position:absolute;left:24px;top:-54px;width:60px;height:60px;opacity:0;transition:opacity .15s}
+.floss.aim{box-shadow:0 7px 0 #2f8a74,0 0 24px 6px #e9fff6}
+.floss.aim .thread{opacity:1}
+.floss.on{background:#e7c14d;box-shadow:0 2px 0 #9b7f25;transform:translateY(5px)}
+.floss:active{transform:translateY(5px);box-shadow:0 2px 0 #2f8a74}
+.floss.pulse{animation:pl 1s ease-in-out infinite}
+/* 結果 */
+#result{display:flex;flex-direction:column;background:rgba(24,18,10,.62);padding:calc(12px + var(--safe-t)) 12px calc(10px + var(--safe-b));gap:10px}
+.paper-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#paper{display:block;box-shadow:0 10px 30px rgba(0,0,0,.55);transform:rotate(.5deg)}
+.res-row{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:center;color:#fff;font-size:15px;text-shadow:0 1px 3px #000}
+.res-row>button:not(.go),.res-row>a{min-height:44px;display:inline-flex;align-items:center}
+.res-row .tag{flex:1 0 100%;text-shadow:none;justify-content:center}
+/* ロード */
+.boot{position:fixed;inset:0;z-index:30;background:#1d2d27;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#eaf6ee;transition:opacity .35s}
+.boot.out{opacity:0}
+.boot-art{width:190px;height:170px}
+.b-thread{stroke-dasharray:70;animation:th 1.5s ease-in-out infinite alternate}
+@keyframes th{from{stroke-dashoffset:70}to{stroke-dashoffset:0}}
+.b-man{animation:sh 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+@keyframes sh{0%{transform:translate(160px,164px) scale(1)}70%,100%{transform:translate(160px,164px) scale(.22)}}
+.boot-msg{margin:0;font-family:"Klee One",serif;font-weight:600;font-size:18px}
+.boot-bar{width:200px;height:4px;background:rgba(255,255,255,.2)}
+.boot-bar i{display:block;height:100%;background:#e8fff5;transform:scaleX(0);transform-origin:0 50%}
+#boot-err{position:fixed;left:8px;right:8px;bottom:8px;z-index:40;background:#fff;color:#900;font:12px/1.4 monospace;white-space:pre-wrap;padding:8px}
+@media (max-height:700px){
+  .plate-man{width:50px;height:60px}
+  h1{font-size:25px}
+  .note{font-size:14px;margin-top:8px}
+  .go{min-height:56px;font-size:20px}
+  .memo{padding:22px 16px 10px}.memo h2{font-size:20px;margin-bottom:6px}.memo ol{font-size:14px;gap:6px}.memo li svg{width:28px;height:28px}
+  .stick{width:112px;height:112px;left:14px;bottom:16px}
+  .floss{width:96px;height:116px;right:14px;bottom:20px}.floss .lid{height:40px}.floss small{font-size:15px;bottom:24px}.floss .cut{left:30px}
+  .say{font-size:18px;top:92px}
+}
