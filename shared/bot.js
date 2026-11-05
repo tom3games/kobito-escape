@@ -1,8 +1,8 @@
 // 自動で遊ぶ役（検証とタイトルの背景）。skilled: 上手い／clumsy: 初めての人（遅い・ぶれる）／ground: 地面を走るだけ／idle: 何もしない
 // toyuser: 上手い人が、猫が起きている間だけ近くのネズミへ寄り道／farm: ネズミだけを回って、なくなったら何もしない／farmgo: 先にネズミを使い切ってから非常口へ
 // 人間と同じ入力（moveDir・throttle・wire・wallY）だけを使う
-import { findAnchor } from './runner.js?v=2'
-import { WAYS } from './house.js?v=2'
+import { findAnchor } from './runner.js?v=3'
+import { WAYS } from './house.js?v=3'
 const P = {
   skilled: { lag: 9, wireGap: 0.3, wireProb: 1, noise: 0.08, dodge: true, relT: 1.7 },
   toyuser: { lag: 9, wireGap: 0.3, wireProb: 1, noise: 0.08, dodge: true, relT: 1.7, toy: 'near' },

@@ -1,10 +1,10 @@
 // 追ってくる物の見た目: ルンバ・猫・おかん（巨大）・掃除機。動きは shared/chase.js の状態を読むだけ
 import * as THREE from 'three'
-import { charAssets, skClone } from './charmodel.js?v=2'
-import { canvasTex } from './house3d.js?v=2'
-import { ITEMS, TOYS } from '../shared/house.js?v=2'
-import { MOM_ART } from './momart.js?v=2'
-import { CH } from '../shared/chase.js?v=2'
+import { charAssets, skClone } from './charmodel.js?v=3'
+import { canvasTex } from './house3d.js?v=3'
+import { ITEMS, TOYS } from '../shared/house.js?v=3'
+import { MOM_ART } from './momart.js?v=3'
+import { CH } from '../shared/chase.js?v=3'
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o })
 const shadow = m => { m.castShadow = true; return m }
@@ -167,13 +167,15 @@ export class Cat3d {
 // 当たり判定は shared/chase.js の吸い口だけを見るので、絵を替えても届く範囲は変わらない
 const V = new URL(import.meta.url).search
 const momTex = {}
-export const momArt = { done: false, loaded: 0, failed: 0, faces: {} }
+export const momArt = { done: false, loaded: 0, failed: 0, faces: {}, big: {} }
 export function loadMomArt() {
   const loader = new THREE.TextureLoader(), keys = Object.keys(MOM_ART.poses)
   const one = k => new Promise(ok => loader.load(`img/mom_${k}.webp${V}`, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; momTex[k] = t; momArt.loaded++; ok() }, undefined, () => { momArt.failed++; ok() }))
   // 顔の切り抜き（カットインと紙）
   const face = k => new Promise(ok => { const im = new Image(); im.onload = () => { momArt.faces[k] = im; ok() }; im.onerror = () => ok(); im.src = `img/face_${k}.webp${V}` })
-  return Promise.all(keys.flatMap(k => [one(k), face(k)])).then(() => { momArt.done = true })
+  // 結果の前の大写し。起動を待たせない（間に合わなければ小さい方を使う）
+  const big = k => { const im = new Image(); im.onload = () => { momArt.big[k] = im; if (im.decode) im.decode().catch(() => {}) }; im.src = `img/big_${k}.webp${V}` }
+  return Promise.all(keys.flatMap(k => [one(k), face(k)])).then(() => { momArt.done = true; for (const k of ['win', 'spot', 'phone', 'angry']) big(k) })
 }
 export class Mom3d {
   constructor(scene) {

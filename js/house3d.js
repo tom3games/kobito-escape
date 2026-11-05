@@ -1,9 +1,9 @@
 // 家の見た目。寸法は shared/house.js の F を読む。すべてコードで作る（持ち込みの素材なし）
 // 同じ材質はまとめて1つのジオメトリにする（スマホでドローコールを増やさない）
 import * as THREE from 'three'
-import { mergeGeometries } from '../vendor/jsm/utils/BufferGeometryUtils.js?v=2'
-import { F, ROOM, LINE, LIGHT_L, LIGHT_K, SHELF_Y, SIGNS, MOM_X } from '../shared/house.js?v=2'
-import { LOW } from './quality.js?v=2'
+import { mergeGeometries } from '../vendor/jsm/utils/BufferGeometryUtils.js?v=3'
+import { F, ROOM, LINE, LIGHT_L, LIGHT_K, SHELF_Y, SIGNS, MOM_X } from '../shared/house.js?v=3'
+import { LOW } from './quality.js?v=3'
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v
 let seed = 11

@@ -1,7 +1,7 @@
 // 追ってくる物（ルンバ・猫・おかんの掃除機）と勝ち負けのきまり。three.js に依存しない
 // 同じ seed なら同じ展開。レアな出来事は seed のくじで決まる
-import { discHits, surfaceBelow, GOAL, ITEMS, TOYS, ROOM, MOM_X, PERCHES, WAYS, START } from './house.js?v=2'
-import { RUN } from './runner.js?v=2'
+import { discHits, surfaceBelow, GOAL, ITEMS, TOYS, ROOM, MOM_X, PERCHES, WAYS, START } from './house.js?v=3'
+import { RUN } from './runner.js?v=3'
 
 export const CH = {
   lives: 3, immune: 3,

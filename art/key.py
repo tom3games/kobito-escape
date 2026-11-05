@@ -46,5 +46,7 @@ for name, (src, box, hand, fb) in P.items():
     poses[name] = {'w': round(w * UNIT, 2), 'h': round(h * UNIT, 2), 'hand': [round((hand[0] - x0) / w, 4), round(1 - (hand[1] - y0) / h, 4)]}
     f = im.crop(fb).resize((256, 256), Image.LANCZOS)
     f.save(OUT + f'face_{name}.webp', quality=82, method=6)
+    # 結果の前の大写し用（同じ箱を大きく。使う4枚だけ）
+    if name in ('win', 'spot', 'phone', 'angry'): im.crop(fb).resize((512, 512), Image.LANCZOS).save(OUT + f'big_{name}.webp', quality=80, method=6)
     print(name, c.size, os.path.getsize(OUT + f'mom_{name}.webp') // 1024, 'KB face', os.path.getsize(OUT + f'face_{name}.webp') // 1024, 'KB', poses[name])
 open(D + '/../js/momart.js', 'w').write('// art/key.py が作る。w,h はゲーム内の大きさ、hand は絵の中の金属パイプの先（0〜1。下から）\nexport const MOM_ART = ' + json.dumps({'poses': poses}, separators=(',', ':')) + '\n')

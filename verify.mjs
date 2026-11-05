@@ -6,6 +6,7 @@ import { MUTE_LAUNCH, muteContext } from './mute.mjs'
 import { play } from './tools/sim.mjs'
 import { sweep } from './tools/reach.mjs'
 import { START } from './shared/house.js'
+import { revealTests } from './tools/reveal.mjs'
 const ROOT = import.meta.dirname
 mkdirSync(ROOT + '/shots', { recursive: true })
 const PORT = 5776
@@ -334,6 +335,7 @@ await pr.close()
 // ---- 3サイズ × 全画面（Chromium と WebKit）
 for (const [bName, launch, opts] of [['chromium', () => browser, touch], ['webkit', () => webkit.launch(), touch]]) {
   const bb = await launch()
+  await revealTests({ browser: bb, bName, URL0, ROOT, t, opts })
   for (const [w, h, name] of SIZES) {
     const q = await open(bb, { viewport: { width: w, height: h }, ...opts })
     const views = {}

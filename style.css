@@ -88,6 +88,17 @@ h1 span:last-child{font-size:1.32em}
 .floss.on{background:#e7c14d;box-shadow:0 2px 0 #9b7f25;transform:translateY(5px)}
 .floss:active{transform:translateY(5px);box-shadow:0 2px 0 #2f8a74}
 .floss.pulse{animation:pl 1s ease-in-out infinite}
+/* 結果の前: おかんの大写し。コマは遊び中のカットインと同じ描き方 */
+#reveal{display:flex;align-items:center;justify-content:center;background:rgba(24,18,10,.62);overflow:hidden;padding-bottom:6svh}
+.rev-wrap{position:relative;width:88vw;width:min(88vw,62vh,440px);width:min(88vw,62svh,440px)}
+#revFrame{position:relative;width:100%;aspect-ratio:1/1;background:#fff repeating-conic-gradient(from 3deg at 50% 46%,#1d1a12 0 2.2deg,#fff 2.2deg 11deg);border:5px solid #1d1a12;outline:4px solid #fff;overflow:hidden;transform:rotate(3deg);animation:revSlam .36s both}
+#revFrame[data-k=phone]{background:#fbe3ea}
+#revFrame img{display:block;width:100%;height:auto;transform-origin:50% 42%;animation:revPush 1.2s linear both}
+#revLine{position:absolute;left:-2%;bottom:-13%;margin:0;padding:20px 28px;white-space:nowrap;font-weight:700;font-size:clamp(23px,7vw,32px);line-height:1.1;color:#1d1a12;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 100' preserveAspectRatio='none'%3E%3Cpath d='M6 50 26 36 14 14 52 24 70 6 96 20 128 3 150 18 186 4 206 20 244 8 246 28 290 22 276 44 298 62 268 66 280 92 238 80 214 97 186 82 150 96 128 82 92 98 78 78 34 90 40 68Z' fill='%23fff' stroke='%231d1a12' stroke-width='4' stroke-linejoin='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center/100% 100% no-repeat;transform:rotate(-3deg);animation:revBub .14s .13s steps(3) both}
+@keyframes revSlam{0%{opacity:0;transform:scale(2.3) rotate(-6deg);animation-timing-function:ease-in}28%{opacity:1;transform:scale(.97) rotate(3.6deg);animation-timing-function:linear}40%{transform:translate(-6px,4px) rotate(3deg)}52%{transform:translate(5px,-3px) rotate(3deg)}66%{transform:translate(-3px,2px) rotate(3deg)}82%{transform:translate(2px,-1px) rotate(3deg)}100%{transform:rotate(3deg)}}
+@keyframes revPush{from{transform:scale(1)}to{transform:scale(1.08)}}
+@keyframes revBub{from{opacity:0;transform:scale(.55) rotate(-9deg)}to{opacity:1;transform:rotate(-3deg)}}
+@media (prefers-reduced-motion:reduce){#revFrame,#revFrame img,#revLine{animation:none}}
 /* 結果 */
 #result{display:flex;flex-direction:column;background:rgba(24,18,10,.62);padding:calc(12px + var(--safe-t)) 12px calc(10px + var(--safe-b));gap:10px}
 .paper-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
@@ -95,6 +106,7 @@ h1 span:last-child{font-size:1.32em}
 .res-row{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:center;color:#fff;font-size:15px;text-shadow:0 1px 3px #000}
 .res-row>button:not(.go),.res-row>a{min-height:44px;display:inline-flex;align-items:center}
 .res-row .tag{flex:1 0 100%;text-shadow:none;justify-content:center}
+#result.settle .res-row{pointer-events:none}
 /* ロード */
 .boot{position:fixed;inset:0;z-index:30;background:#1d2d27;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#eaf6ee;transition:opacity .35s}
 .boot.out{opacity:0}

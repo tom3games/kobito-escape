@@ -2,8 +2,8 @@
 // 自分: KayKit Adventurers 2.0 の Ranger（CC0）をティッシュを巻いた体に塗り替え、Rig_Medium のアニメを当てる
 // 先住のおじさん: Kenney Mini Characters（CC0）
 import * as THREE from 'three'
-import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js?v=2'
-import { clone as skClone } from '../vendor/jsm/utils/SkeletonUtils.js?v=2'
+import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js?v=3'
+import { clone as skClone } from '../vendor/jsm/utils/SkeletonUtils.js?v=3'
 
 const BASE = 'assets/chars/'
 const A = { ready: false, failed: false, ranger: null, clips: {}, kenney: {} }

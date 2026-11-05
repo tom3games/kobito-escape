@@ -8,7 +8,7 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="小人になって家の中を逃げろ">
 <meta property="og:description" content="体2cm。デンタルフロスで家具を渡り、ルンバと猫とおかんの掃除機から逃げて冷蔵庫の上の非常口へ。スマホのブラウザで遊べる。">
-<meta property="og:image" content="https://tom3games.github.io/kobito-escape/og.png?v=2">
+<meta property="og:image" content="https://tom3games.github.io/kobito-escape/og.png?v=3">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://tom3games.github.io/kobito-escape/">
@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
 <link rel="modulepreload" href="vendor/three.module.min.js">
 <link rel="modulepreload" href="vendor/three.core.min.js">
@@ -75,6 +75,11 @@
     <button id="btnResume" class="tag" data-t="resume"></button>
     <button id="btnQuit" class="txt" data-t="quit"></button>
   </div>
+</section>
+
+<!-- 結果の前: おかんの大写し（漫画のコマ。タップで飛ばす） -->
+<section id="reveal" class="hidden">
+  <div class="rev-wrap"><div id="revFrame"></div><p id="revLine"></p></div>
 </section>
 
 <!-- 結果: 紙 -->
@@ -135,7 +140,7 @@
   setTimeout(show,45000);
 })();
 </script>
-<script src="sfx.js?v=2"></script>
-<script type="module" src="js/game.js?v=2"></script>
+<script src="sfx.js?v=3"></script>
+<script type="module" src="js/game.js?v=3"></script>
 </body>
 </html>

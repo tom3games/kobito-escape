@@ -1,15 +1,15 @@
 // 小人になって家の中を逃げろ。ワイヤーは空中出前 sky-delivery と同じ操作。追う役は shared/chase.js
 import * as THREE from 'three'
-import { FX } from './fx.js?v=2'
-import { Q, LOW } from './quality.js?v=2'
-import { CharRunnerModel, loadCharAssets, charAssets } from './charmodel.js?v=2'
-import { buildHouse } from './house3d.js?v=2'
-import { Roomba3d, Cat3d, Mom3d, Slipper3d, Toys3d, buildItems, buildOldMan, loadMomArt, momArt } from './chasers3d.js?v=2'
-import { drawPaper, drawStamp } from './paper.js?v=2'
-import { createHouse, START, GOAL, WAYS, F } from '../shared/house.js?v=2'
-import { createRunner, stepRunner, findAnchor, rayHit, floorAt, RUN } from '../shared/runner.js?v=2'
-import { CH, createRun, stepRun, rankOf, nearestThreats, momFace } from '../shared/chase.js?v=2'
-import { createBot, botInput } from '../shared/bot.js?v=2'
+import { FX } from './fx.js?v=3'
+import { Q, LOW } from './quality.js?v=3'
+import { CharRunnerModel, loadCharAssets, charAssets } from './charmodel.js?v=3'
+import { buildHouse } from './house3d.js?v=3'
+import { Roomba3d, Cat3d, Mom3d, Slipper3d, Toys3d, buildItems, buildOldMan, loadMomArt, momArt } from './chasers3d.js?v=3'
+import { drawPaper, drawStamp } from './paper.js?v=3'
+import { createHouse, START, GOAL, WAYS, F } from '../shared/house.js?v=3'
+import { createRunner, stepRunner, findAnchor, rayHit, floorAt, RUN } from '../shared/runner.js?v=3'
+import { CH, createRun, stepRun, rankOf, nearestThreats, momFace } from '../shared/chase.js?v=3'
+import { createBot, botInput } from '../shared/bot.js?v=3'
 
 window.__jsUp = true
 const $ = id => document.getElementById(id)
@@ -62,6 +62,7 @@ const T = {
     winRowTime: '脱出までの時間', winRowCaught: '捕まった回数', winItems: '持ち出した物',
     winGag: ['非常口の先は、おとんの靴の中でした。', '非常口の先は、ご近所の回覧板の間でした。', '非常口の先は、となりの家の冷蔵庫の上でした。'],
     stamps: ['回収', 'あと少し', '脱出', '無傷で脱出'],
+    reveal: { vac: ['吸うたったで！', 'ゴミと一緒やで！'], slipper: ['仕留めたで！', '一発やで！'], cat: ['猫がなんか獲ったわ', '奥さん、うちの猫が'], roomba: ['ルンバが食べた！', 'ルンバ、吐きなさい！'], win: ['逃げよったな！', 'ヨーグルト返し！'] },
     postWin: (t, n) => `体が2cmになって実家から脱出した。${t}、捕まった回数${n}回 #小人になって家の中を逃げろ`,
     postLose: (h, t) => `体が2cmになって${h}に書かれた。${t}逃げた #小人になって家の中を逃げろ`
   },
@@ -107,6 +108,7 @@ const T = {
     winRowTime: 'Time to escape', winRowCaught: 'Caught', winItems: 'You took',
     winGag: ['The exit led into Dad\'s shoe.', 'The exit led into the neighborhood bulletin.', 'The exit led to the top of the neighbor\'s fridge.'],
     stamps: ['COLLECTED', 'ALMOST', 'ESCAPED', 'UNSCATHED'],
+    reveal: { vac: ['Sucked up!', 'Just dust!'], slipper: ['Got it!', 'One hit!'], cat: ['Cat got one!', 'Guess what?'], roomba: ['Spit it out!', 'Roomba ate!'], win: ['Come back!', 'My yogurt!'] },
     postWin: (t, n) => `I shrank to 2 cm and escaped the house in ${t}, caught ${n} times`,
     postLose: (h, t) => `I shrank to 2 cm and ended up in the ${h}. Survived ${t}`
   }
@@ -291,10 +293,10 @@ function gather() {
 }
 
 // ---------------------------------------------------------------- 画面の切り替え
-function show(id) { for (const s of ['title', 'how', 'pause', 'result']) $(s).classList.toggle('hidden', s !== id); $('hud').classList.toggle('hidden', mode !== 'play'); $('danger').style.opacity = 0; flashA = 0 }
+function show(id) { for (const s of ['title', 'how', 'pause', 'reveal', 'result']) $(s).classList.toggle('hidden', s !== id); $('hud').classList.toggle('hidden', mode !== 'play'); $('danger').style.opacity = 0; flashA = 0 }
 function resetChase3d() { for (const k in items3d) items3d[k].visible = true; oldMan.g.visible = false; slipper3d.update(null, 9); cat3d.ring.visible = cat3d.fill.visible = false }
 function toTitle() {
-  mode = 'title'; paused = false; me = null; run = null; endAt = 0; stampD = null
+  clearTimeout(revealTimer); mode = 'title'; paused = false; me = null; run = null; endAt = 0; stampD = null
   const r = createRunner({ id: 'demo', spawn: START })
   demo = { r, m: createRun(world, r, 7), b: createBot('skilled', 7), seed: 7 }
   resetChase3d(); newModel(); cam.hd = 0; cam.pitch = 0.3
@@ -303,7 +305,7 @@ function toTitle() {
 }
 function startRun(seed = Math.floor(Math.random() * 1e6)) {
   Snd.init(); sfx('click')
-  mode = 'play'; paused = false; demo = null; endAt = 0; stampD = null; photoCv = null; hitStop = 0; lineT = 11; lineI = seed % 9; hinted = {}; firstWire = false; momDoor = false; spotI = seed % 4; toyI = seed % 4; cutT = 0; $('momCut').classList.add('hidden')
+  clearTimeout(revealTimer); mode = 'play'; paused = false; demo = null; endAt = 0; stampD = null; photoCv = null; hitStop = 0; lineT = 11; lineI = seed % 9; hinted = {}; firstWire = false; momDoor = false; spotI = seed % 4; toyI = seed % 4; cutT = 0; $('momCut').classList.add('hidden')
   me = createRunner({ id: 'me', spawn: START }); run = createRun(world, me, seed); run.seed = seed
   resetChase3d(); newModel()
   oldMan.g.visible = run.rare.oldMan
@@ -459,6 +461,37 @@ let snapNext = false, autoBot = null
 function snapPhoto() { snapNext = true }
 function takePhoto() { const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * innerHeight / innerWidth); c.getContext('2d').drawImage(renderer.domElement, 0, 0, c.width, c.height); photoCv = c }
 
+// ---------------------------------------------------------------- 結果の前: おかんの大写し
+// 紙の前に約1.2秒。捕まえたら勝ち誇り、猫は電話で報告、ルンバは驚く、逃げられたら怒る
+const REVEAL_MS = 1200, SKIP_AFTER = 250, SETTLE_MS = 350
+const REVEAL = {
+  vac: { face: 'win', snd: [['slap', { vol: 1 }], ['grunt', { vol: 0.8, rate: 0.72, delay: 0.1 }]] },
+  slipper: { face: 'win', snd: [['slap', { vol: 1 }], ['wood', { vol: 0.8, delay: 0.06 }]] },
+  cat: { face: 'phone', snd: [['bonk', { vol: 0.9 }], ['mew', { vol: 0.8, delay: 0.18 }]] },
+  roomba: { face: 'spot', snd: [['bonk', { vol: 0.9 }], ['pop', { vol: 0.8, delay: 0.14 }]] },
+  win: { face: 'angry', snd: [['bonk', { vol: 1 }], ['grunt', { vol: 0.85, rate: 0.85, delay: 0.1 }]] }
+}
+let revealTimer = 0, revealAt = 0
+function startReveal() {
+  const m = run, by = m.won ? 'win' : REVEAL[m.by] ? m.by : 'vac', R = REVEAL[by]
+  const im = momArt.big[R.face] || momArt.faces[R.face]
+  if (!im) return showResult()   // 絵が読めなかった時は飛ばす
+  mode = 'reveal'; show('reveal')
+  const L = T[lang].reveal[by], line = L[m.seed % L.length], f = $('revFrame')
+  f.dataset.k = R.face; f.replaceChildren(im); $('revLine').textContent = line   // 読み込み済みの絵をそのまま置く（白いコマを挟まない）
+  for (const [n, o] of R.snd) sfx(n, { ...o, delay: (o.delay || 0) + 0.09 })   // 枠が止まる瞬間に合わせる
+  drawSpeed(0, 0)   // 止める前に速さの線と光を消す
+  revealAt = performance.now(); revealTimer = setTimeout(endReveal, REVEAL_MS)
+  window.__revealLast = { by, face: R.face, line, big: im === momArt.big[R.face] }
+}
+function endReveal() {
+  clearTimeout(revealTimer); if (mode !== 'reveal') return
+  showResult()
+  // 連打の次の1回で「もう一回」を押して紙を失わないように、出た直後だけ受けない
+  const r = $('result'); r.classList.add('settle'); setTimeout(() => r.classList.remove('settle'), SETTLE_MS)
+}
+$('reveal').onclick = () => { if (performance.now() - revealAt >= SKIP_AFTER) endReveal() }   // 遊びの続きの連打で飛ばない
+
 // ---------------------------------------------------------------- 結果
 function showResult() {
   mode = 'result'
@@ -576,6 +609,7 @@ function stepOnce() {
 }
 function frame() {
   requestAnimationFrame(frame)
+  if (mode === 'reveal') { last = performance.now(); return }   // 大写しの間は 3D を止める（止め絵になり、遅い端末でも秒数がずれない）
   const now = performance.now()
   let dt = Math.min(0.1, (now - last) / 1000); last = now
   if (hitStop > 0) { hitStop -= dt; acc = 0 }
@@ -666,7 +700,7 @@ function render(dt) {
   fx.shake = Math.max(0, fx.shake - dt * 2.5)
   if (mode === 'play' && run) {
     updateHud(dt)
-    if (endAt > 0 && !paused) { endAt -= dt; if (endAt <= 0) showResult() }
+    if (endAt > 0 && !paused) { endAt -= dt; if (endAt <= 0) startReveal() }
   }
   if (stampD && mode === 'result') {
     stampAt -= dt
@@ -681,7 +715,7 @@ function render(dt) {
 // ---------------------------------------------------------------- 検証用の窓口
 window.kob = {
   get mode() { return mode }, log, mom3d, momArt, momFace, toys3d, get me() { return me }, get run() { return run }, RUN, CH, world, camera, cam, renderer, GOAL, F, built, get stickObj() { return stick },
-  start: s => startRun(s), toTitle, showResult, setLang: l => { lang = l; applyLang() }, get lang() { return lang }, setPause,
+  start: s => startRun(s), toTitle, showResult, startReveal, get revealTexts() { return { ja: T.ja.reveal, en: T.en.reveal } }, setLang: l => { lang = l; applyLang() }, get lang() { return lang }, setPause,
   dbg: {
     pause: on => { dbgPause = on }, step: n => { for (let i = 0; i < n; i++) stepOnce(); render(STEP) }, render: n => { for (let i = 0; i < n; i++) render(1 / 30) },
     teleport: (x, y, z, yaw) => { Object.assign(me, { x, y, z, vx: 0, vy: 0, vz: 0, rope: null, climbing: null, grounded: y < 0.1 }); if (yaw != null) { me.yaw = yaw; cam.hd = yaw } cam.off.set(-Math.sin(cam.hd) * 6, 3, -Math.cos(cam.hd) * 6); cam.lookOff.set(Math.sin(cam.hd) * 10, 1.4, Math.cos(cam.hd) * 10) },
