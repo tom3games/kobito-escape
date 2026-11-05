@@ -8,7 +8,7 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="小人になって家の中を逃げろ">
 <meta property="og:description" content="体2cm。デンタルフロスで家具を渡り、ルンバと猫とおかんの掃除機から逃げて冷蔵庫の上の非常口へ。スマホのブラウザで遊べる。">
-<meta property="og:image" content="https://tom3games.github.io/kobito-escape/og.png?v=1">
+<meta property="og:image" content="https://tom3games.github.io/kobito-escape/og.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://tom3games.github.io/kobito-escape/">
@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
 <link rel="modulepreload" href="vendor/three.module.min.js">
 <link rel="modulepreload" href="vendor/three.core.min.js">
@@ -54,8 +54,10 @@
 <!-- 遊び中 -->
 <section id="hud" class="hidden">
   <div id="plasters" aria-hidden="true"></div>
+  <div id="toys" aria-hidden="true"><div id="toyTokens"></div><i id="toyBar"></i></div>
   <div id="sign" class="sign"><svg class="man" viewBox="0 0 68 76" aria-hidden="true"><use href="#runner"/></svg><svg id="signArrow" class="arw" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 L22 13 H15.5 V23 H8.5 V13 H2Z"/></svg><div class="sign-txt"><b id="signName"></b><span id="signDist"></span></div></div>
   <button id="btnPause" class="timer"><span id="tClock">0:00</span></button>
+  <div id="momCut" class="hidden" aria-hidden="true"><img alt=""></div>
   <div id="say" class="say hidden"></div>
   <div id="miss" class="miss hidden"><span data-t="tooFar"></span></div>
   <div class="threat hidden" data-k="roomba"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#24262b"/><circle cx="14" cy="15" r="5" fill="#f8f8f4"/><circle cx="26" cy="15" r="5" fill="#f8f8f4"/><circle cx="14" cy="16" r="2.4"/><circle cx="26" cy="16" r="2.4"/></svg></div>
@@ -86,7 +88,7 @@
   </div>
 </section>
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="runner" viewBox="-34 -38 68 76"><g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="-27" r="6.5" fill="currentColor" stroke="none"/><path d="M5 -16 L-2 4 L14 13 L10 30 M-2 4 L-12 16 L-26 16 M4 -14 L17 -7 L26 -13 M4 -14 L-10 -13 L-17 -2"/></g></symbol></svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="mouseToy" viewBox="0 0 40 40"><path d="M9 26 C3 30 3 36 11 35" fill="none" stroke="#c33a2f" stroke-width="2.4" stroke-linecap="round"/><path d="M8 26 C8 15 19 11 27 15 L37 25 C38 28 36 29 33 29 L13 30 C10 30 8 29 8 26Z" fill="#9b9ea5" stroke="#1d1a12" stroke-width="2"/><circle cx="24" cy="13" r="5" fill="#e9a3af" stroke="#1d1a12" stroke-width="2"/><circle cx="31" cy="22" r="1.7" fill="#101010"/><circle cx="37" cy="26" r="1.6" fill="#e58a9a"/><path d="M16 15 V8 M13 6 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0" fill="none" stroke="#c9b458" stroke-width="2"/></symbol><symbol id="runner" viewBox="-34 -38 68 76"><g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="-27" r="6.5" fill="currentColor" stroke="none"/><path d="M5 -16 L-2 4 L14 13 L10 30 M-2 4 L-12 16 L-26 16 M4 -14 L17 -7 L26 -13 M4 -14 L-10 -13 L-17 -2"/></g></symbol></svg>
 
 <!-- ロード画面: 糸が出てくるデンタルフロスのケースと、縮んでいく人 -->
 <div id="boot" class="boot">
@@ -133,7 +135,7 @@
   setTimeout(show,45000);
 })();
 </script>
-<script src="sfx.js?v=1"></script>
-<script type="module" src="js/game.js?v=1"></script>
+<script src="sfx.js?v=2"></script>
+<script type="module" src="js/game.js?v=2"></script>
 </body>
 </html>

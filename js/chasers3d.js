@@ -1,9 +1,10 @@
 // 追ってくる物の見た目: ルンバ・猫・おかん（巨大）・掃除機。動きは shared/chase.js の状態を読むだけ
 import * as THREE from 'three'
-import { charAssets, skClone } from './charmodel.js'
-import { canvasTex } from './house3d.js'
-import { ITEMS } from '../shared/house.js'
-import { CH } from '../shared/chase.js'
+import { charAssets, skClone } from './charmodel.js?v=2'
+import { canvasTex } from './house3d.js?v=2'
+import { ITEMS, TOYS } from '../shared/house.js?v=2'
+import { MOM_ART } from './momart.js?v=2'
+import { CH } from '../shared/chase.js?v=2'
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o })
 const shadow = m => { m.castShadow = true; return m }
@@ -162,11 +163,29 @@ export class Cat3d {
 }
 
 // ---------------------------------------------------------------- おかんと掃除機
+// おかん本体は画像生成の切り絵（img/mom_*.webp）。カメラの方へ縦軸だけ回す板。掃除機の本体・ホース・吸い口は 3D のまま
+// 当たり判定は shared/chase.js の吸い口だけを見るので、絵を替えても届く範囲は変わらない
+const V = new URL(import.meta.url).search
+const momTex = {}
+export const momArt = { done: false, loaded: 0, failed: 0, faces: {} }
+export function loadMomArt() {
+  const loader = new THREE.TextureLoader(), keys = Object.keys(MOM_ART.poses)
+  const one = k => new Promise(ok => loader.load(`img/mom_${k}.webp${V}`, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; momTex[k] = t; momArt.loaded++; ok() }, undefined, () => { momArt.failed++; ok() }))
+  // 顔の切り抜き（カットインと紙）
+  const face = k => new Promise(ok => { const im = new Image(); im.onload = () => { momArt.faces[k] = im; ok() }; im.onerror = () => ok(); im.src = `img/face_${k}.webp${V}` })
+  return Promise.all(keys.flatMap(k => [one(k), face(k)])).then(() => { momArt.done = true })
+}
 export class Mom3d {
   constructor(scene) {
     this.scene = scene; this.g = new THREE.Group(); this.g.visible = false; scene.add(this.g)
-    this.mixer = null; this.acts = {}; this.ok = false
-    this.t = 0
+    this.t = 0; this.key = null; this.flip = 1; this.sx = 1; this.pop = 0
+    // 切り絵の板: 足元が原点。光を計算しない（イラストのまま見せる）
+    const mat = this.mat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, toneMapped: false, color: 0xfff6e8 })
+    const paper = this.paper = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0), mat); paper.castShadow = true; paper.visible = false; this.g.add(paper)
+    // 絵が読めなかった時の代わり（遊べなくしない）
+    this.stub = new THREE.Mesh(new THREE.CapsuleGeometry(28, 72, 4, 12).translate(0, 64, 0), std(0xb56a7c, { roughness: 1 })); this.stub.visible = false; this.g.add(this.stub)
+    // 足元の影
+    { const t = canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(64, 64, 8, 64, 64, 64); g.addColorStop(0, 'rgba(30,20,10,.5)'); g.addColorStop(1, 'rgba(30,20,10,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }); this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false })); this.blob.rotation.x = -Math.PI / 2; this.blob.scale.set(100, 62, 1); this.blob.visible = false; this.blob.renderOrder = 1; scene.add(this.blob) }
     // 掃除機の本体（床を引きずる。赤い昭和の形）
     const can = this.can = new THREE.Group()
     const body = shadow(new THREE.Mesh(new THREE.SphereGeometry(15, 24, 14).scale(1.05, 0.72, 1.5), std(0xb5362b, { roughness: 0.3 }))); body.position.y = 13
@@ -180,78 +199,109 @@ export class Mom3d {
     const bristle = new THREE.Mesh(new THREE.BoxGeometry(22, 0.8, 0.8), std(0xb33a2b)); bristle.position.set(0, -2, 4.3); noz.add(bristle)
     const neck = shadow(new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 8, 12).rotateX(Math.PI / 2 - 0.6), std(0x8f9499, { metalness: 0.6, roughness: 0.3 }))); neck.position.set(0, 3.2, -4); noz.add(neck)
     noz.visible = false; scene.add(noz)
-    // ホース（じゃばら。節を並べる）
-    this.segN = 34
-    this.hose = new THREE.InstancedMesh(new THREE.CylinderGeometry(1.8, 1.8, 1, 8), std(0x777c80, { roughness: 0.6 }), this.segN); this.hose.frustumCulled = false; this.hose.castShadow = true; this.hose.visible = false; scene.add(this.hose)
-    this.hair = null
-    this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._a = new THREE.Vector3(); this._b = new THREE.Vector3(); this._c = new THREE.Vector3(); this._d = new THREE.Vector3(); this._up = new THREE.Vector3(0, 1, 0)
+    // ホース（じゃばら。節を並べる）。本体 → 手の金属パイプ → 吸い口 の2本つなぎ
+    this.segN = 36
+    this.hose = new THREE.InstancedMesh(new THREE.CylinderGeometry(2.3, 2.3, 1, 8), std(0x777c80, { roughness: 0.6 }), this.segN); this.hose.frustumCulled = false; this.hose.visible = false; scene.add(this.hose)
+    this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._a = new THREE.Vector3(); this._b = new THREE.Vector3(); this._c = new THREE.Vector3(); this._d = new THREE.Vector3(); this._h = new THREE.Vector3(); this._e = new THREE.Vector3(); this._s = new THREE.Vector3(); this._p = new THREE.Vector3(); this._t1 = new THREE.Vector3(); this._t2 = new THREE.Vector3(); this._up = new THREE.Vector3(0, 1, 0)
   }
-  build() {
-    if (this.ok || !charAssets.ready) return
-    const k = charAssets.kenney['female-d']; if (!k) return
-    const ch = skClone(k.scene)
-    const box = new THREE.Box3().setFromObject(ch), h = box.max.y - box.min.y, S = 128 / h
-    ch.scale.setScalar(S); ch.position.y = -box.min.y * S
-    this.g.add(ch); this.ch = ch; this.S = S
-    this.mixer = new THREE.AnimationMixer(ch)
-    for (const cl of k.clips) { const a = this.mixer.clipAction(cl); this.acts[cl.name] = a }
-    this.act = null; this.play('idle')
-    // 付け足し: パンチパーマとエプロン（骨に付ける。Kenney の骨の単位に戻す）
-    let headB = null, torso = null; ch.traverse(o => { if (o.isBone && o.name === 'head') headB = o; if (o.isBone && o.name === 'torso') torso = o })
-    const inv = 1 / S
-    if (headB) {
-      const hm = std(0x2a2422, { roughness: 1 }), wrap = new THREE.Group(); wrap.scale.setScalar(inv)
-      let sd = 5
-      const rn = () => (sd = (sd * 16807) % 2147483647) / 2147483647
-      for (let i = 0; i < 46; i++) { const a = rn() * 6.28, b = rn() * 1.5 - 0.1, R0 = 30; const px = Math.cos(a) * Math.cos(b) * R0, py = 34 + Math.sin(b) * 24, pz = Math.sin(a) * Math.cos(b) * R0; if (pz > 2 && py < 44) continue; const s = new THREE.Mesh(new THREE.IcosahedronGeometry(7.5 + rn() * 2.5, 1), hm); s.position.set(px, py, pz); wrap.add(s) }
-      headB.add(wrap)
-    }
-    if (torso) {
-      const ap = new THREE.Mesh(new THREE.BoxGeometry(46, 44, 2), new THREE.MeshStandardMaterial({ map: canvasTex(128, 128, (x, w, h) => { x.fillStyle = '#d07f92'; x.fillRect(0, 0, w, h); x.fillStyle = '#f7eee0'; for (let i = 0; i < 30; i++) { x.beginPath(); x.arc((i % 6) * 22 + 12 + ((i / 6 | 0) % 2) * 10, (i / 6 | 0) * 24 + 12, 5, 0, 7); x.fill() } x.fillStyle = '#b86076'; x.fillRect(26, 74, 76, 34) }), roughness: 1 }))
-      ap.scale.setScalar(inv); ap.position.set(0, 4 * inv, 26 * inv); torso.add(ap)
-    }
-    this.ok = true
+  setPose(k) {
+    if (k === this.key) return
+    const tx = momTex[k]; if (!tx) { if (momArt.done && !this.key) this.stub.visible = true; return }
+    this.key = k; this.mat.map = tx; this.mat.needsUpdate = true; this.paper.visible = true; this.stub.visible = false; this.pop = 1
   }
-  play(n) { const a = this.acts[n]; if (!a || this.act === a) return; a.reset().fadeIn(0.25).play(); if (this.act) this.act.fadeOut(0.25); this.act = a }
-  update(M, dt, camera) {
-    this.build()
+  update(M, dt, camera, face) {
     this.t += dt
-    if (!M.in) { this.g.visible = false; this.can.visible = this.noz.visible = this.hose.visible = false; return }
-    this.g.visible = true; this.can.visible = this.noz.visible = this.hose.visible = true
-    this.g.position.set(M.x, 0, M.z)
-    // 体は吸い口の方を向く
-    const N = M.noz, ang = Math.atan2(N.x - M.x, N.z - M.z)
-    let dA = ang - this.g.rotation.y; while (dA > Math.PI) dA -= Math.PI * 2; while (dA < -Math.PI) dA += Math.PI * 2; this.g.rotation.y += dA * Math.min(1, dt * 3)
-    if (this.mixer) {
-      this.play(M.phoneT > 0 ? 'emote-yes' : M.walking ? 'walk' : 'holding-right')
-      if (this.acts.walk) this.acts.walk.timeScale = 0.55
-      this.mixer.update(dt)
-    }
+    if (!M.in) { this.g.visible = false; this.can.visible = this.noz.visible = this.hose.visible = this.blob.visible = false; return }
+    this.g.visible = true; this.can.visible = this.noz.visible = this.hose.visible = this.blob.visible = true
+    this.setPose(face)
+    this.g.position.set(M.x, 0, M.z); this.blob.position.set(M.x, 0.08, M.z)
+    // 板はカメラの方を向く（縦軸だけ）
+    const yaw = Math.atan2(camera.position.x - M.x, camera.position.z - M.z); this.g.rotation.y = yaw
+    // パイプは絵の右手。吸い口が反対側へ回ったら紙を裏返す
+    const N = M.noz, side = (N.x - M.x) * Math.cos(yaw) - (N.z - M.z) * Math.sin(yaw)
+    if (side * this.flip < -14) this.flip = -this.flip
+    this.sx += (this.flip - this.sx) * Math.min(1, dt * 12)
+    const pose = MOM_ART.poses[this.key] || MOM_ART.poses.normal, P = this.paper, T = this.t
+    this.pop = Math.max(0, this.pop - dt * 5)
+    const hop = M.walking ? Math.abs(Math.sin(T * 4.2)) * 2.6 : 0
+    const rock = face === 'phone' ? Math.sin(T * 3) * 0.05 : face === 'win' ? Math.sin(T * 9) * 0.03 : M.walking ? Math.sin(T * 4.2) * 0.035 : Math.sin(T * 1.3) * 0.012
+    const shake = face === 'angry' ? Math.sin(T * 47) * 0.5 : 0
+    P.position.set(shake, hop, 0); P.rotation.z = rock
+    P.scale.set(pose.w * (Math.abs(this.sx) < 0.04 ? 0.04 * this.flip : this.sx), pose.h * (1 + this.pop * 0.07), 1)
     // 本体
     const ca = this.can; const cx = M.x - 26, cz = M.z - 22
     ca.position.x += (cx - ca.position.x) * Math.min(1, dt * 2); ca.position.z += (cz - ca.position.z) * Math.min(1, dt * 2)
     ca.rotation.y = Math.atan2(M.x - ca.position.x, M.z - ca.position.z)
     // 吸い口: 自分へ向かう
-    const nz = this.noz; nz.position.set(N.x, N.y + Math.sin(this.t * 34) * (N.active ? 0.2 : 0), N.z)
+    const nz = this.noz; nz.position.set(N.x, N.y + Math.sin(T * 34) * (N.active ? 0.2 : 0), N.z)
     if (this._look) nz.lookAt(this._look)
-    // ホース: 本体 → 手の高さ → 吸い口
-    const a = this._a.set(ca.position.x, 22, ca.position.z), c = this._c.set(N.x, N.y + 3, N.z), b = this._b.set(M.x + 20, 58, M.z + 24)
-    let prev = null
-    for (let i = 0; i <= this.segN; i++) {
-      const u = i / this.segN, v = 1 - u
-      const px = v * v * a.x + 2 * v * u * b.x + u * u * c.x, py = v * v * a.y + 2 * v * u * b.y + u * u * c.y, pz = v * v * a.z + 2 * v * u * b.z + u * u * c.z
-      if (prev) {
-        const d = this._d.set(px - prev.x, py - prev.y, pz - prev.z), l = d.length() || 1
-        this._q.setFromUnitVectors(this._up, d.clone().divideScalar(l))
-        const r = 1 + 0.12 * (i % 2)
-        this._m.compose(new THREE.Vector3((px + prev.x) / 2, (py + prev.y) / 2, (pz + prev.z) / 2), this._q, new THREE.Vector3(r, l, r))
-        this.hose.setMatrixAt(i - 1, this._m)
-      }
-      prev = { x: px, y: py, z: pz }
+    // ホース: 手の位置は板の行列から取る（揺れ・裏返しも一緒に動く）
+    this.g.updateMatrixWorld(true)
+    const H = this._h.set(pose.hand[0] - 0.5, pose.hand[1], 0).applyMatrix4(P.matrixWorld)
+    H.x += Math.sin(yaw) * 1.5; H.z += Math.cos(yaw) * 1.5   // 紙より少し手前
+    const a = this._a.set(ca.position.x, 22, ca.position.z), c = this._c.set(N.x, N.y + 3, N.z)
+    const bA = this._b.set((a.x + H.x) / 2, Math.min(a.y, H.y) * 0.4, (a.z + H.z) / 2)
+    // パイプの向きに出てから吸い口へ曲がる
+    const pipe = H.distanceTo(c) * 0.3, rx = Math.cos(yaw) * this.sx, rz = -Math.sin(yaw) * this.sx
+    const bC = this._e.set(H.x + rx * pipe * 0.72, H.y - pipe * 0.72, H.z + rz * pipe * 0.72)
+    const n1 = 14, Q = (p0, p1, p2, u, out) => { const v = 1 - u; return out.set(v * v * p0.x + 2 * v * u * p1.x + u * u * p2.x, v * v * p0.y + 2 * v * u * p1.y + u * u * p2.y, v * v * p0.z + 2 * v * u * p1.z + u * u * p2.z) }
+    const prev = this._p; Q(a, bA, H, 0, prev)
+    for (let i = 1; i <= this.segN; i++) {
+      const pt = i <= n1 ? Q(a, bA, H, i / n1, this._s) : Q(H, bC, c, (i - n1) / (this.segN - n1), this._s)
+      const d = this._d.subVectors(pt, prev), l = d.length() || 1
+      this._q.setFromUnitVectors(this._up, d.divideScalar(l))
+      const r = 1 + 0.12 * (i % 2)
+      this._m.compose(this._t1.set((pt.x + prev.x) / 2, (pt.y + prev.y) / 2, (pt.z + prev.z) / 2), this._q, this._t2.set(r, l + 0.3, r))
+      this.hose.setMatrixAt(i - 1, this._m)
+      prev.copy(pt)
     }
     this.hose.instanceMatrix.needsUpdate = true
   }
   lookNoz(x, y, z) { this._look = this._look || new THREE.Vector3(); this._look.set(x, y, z) }
+}
+
+// ---------------------------------------------------------------- ネズミのおもちゃ（ゼンマイつき）
+// 頂点色で1つの形にまとめる（1匹1描画）
+function mouseGeo() {
+  const parts = [], add = (g, col) => { const c = new THREE.Color(col), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); parts.push(g.index ? g.toNonIndexed() : g) }
+  add(new THREE.SphereGeometry(1, 16, 10).scale(2.3, 2, 3.8).translate(0, 2.1, 0), 0x8c8f96)
+  add(new THREE.ConeGeometry(1.5, 3, 12).rotateX(Math.PI / 2).translate(0, 1.9, 4.5), 0x9b9ea5)
+  add(new THREE.SphereGeometry(0.5, 8, 6).translate(0, 1.9, 6), 0xe58a9a)
+  for (const s of [-1, 1]) {
+    add(new THREE.SphereGeometry(1.25, 10, 8).scale(1, 1, 0.3).translate(s * 1.4, 3.9, 2.5), 0xe9a3af)
+    add(new THREE.SphereGeometry(0.34, 8, 6).translate(s * 0.75, 2.7, 4.5), 0x101010)
+  }
+  // ゼンマイの鍵
+  add(new THREE.CylinderGeometry(0.22, 0.22, 1.6, 6).translate(0, 4.6, -1), 0xc9b458)
+  add(new THREE.TorusGeometry(0.7, 0.2, 6, 12).translate(0, 5.8, -1), 0xc9b458)
+  // しっぽ（赤いひも）
+  { const cu = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 2, -3.6), new THREE.Vector3(0.8, 1, -5.6), new THREE.Vector3(-0.8, 0.4, -7.6), new THREE.Vector3(0.6, 0.3, -9.4)]); add(new THREE.TubeGeometry(cu, 12, 0.22, 5), 0xc33a2f) }
+  let n = 0; for (const g of parts) n += g.attributes.position.count
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3); let o = 0
+  for (const g of parts) { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); col.set(g.attributes.color.array, o * 3); o += g.attributes.position.count }
+  const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); out.setAttribute('color', new THREE.BufferAttribute(col, 3))
+  return out
+}
+export class Toys3d {
+  constructor(scene) {
+    const geo = mouseGeo()
+    this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 })
+    this.matOff = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, color: 0x6d6a66 })
+    this.items = TOYS.map(() => { const g = new THREE.Group(), m = shadow(new THREE.Mesh(geo, this.mat)); g.add(m); const sp = new THREE.Sprite(sparkleMat()); sp.position.y = 8; sp.scale.setScalar(10); g.add(sp); scene.add(g); return { g, m, sp } })
+    this.t = 0
+  }
+  update(run, dt) {
+    this.t += dt
+    run.toys.forEach((y, i) => {
+      const o = this.items[i]; o.g.position.set(y.x, y.y, y.z)
+      const usable = y.state === 'idle' && run.toyUses > 0
+      o.sp.visible = usable
+      o.m.material = y.state === 'idle' && !usable ? this.matOff : this.mat
+      if (y.state === 'idle') { o.m.rotation.set(0, i * 1.9 + Math.sin(this.t * 2 + i) * 0.1, usable ? Math.sin(this.t * 13 + i) * 0.03 : 0); o.m.position.y = 0 }
+      else if (y.state === 'dead' && !(y.vx || y.vz)) { o.m.rotation.set(0, i * 1.9, 1.55); o.m.position.y = 2 }   // 伸びている
+      else { if (Math.hypot(y.vx, y.vz) > 1) o.m.rotation.y = Math.atan2(y.vx, y.vz); o.m.rotation.x = y.spin; o.m.rotation.z = Math.sin(y.spin * 0.7) * 0.5; o.m.position.y = 2.2 + Math.abs(Math.sin(y.spin * 1.3)) * 1.2 }
+    })
+  }
 }
 
 // ---------------------------------------------------------------- スリッパ（レア）

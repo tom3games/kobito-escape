@@ -51,6 +51,16 @@ h1 span:last-child{font-size:1.32em}
 .pl::after{content:"";position:absolute;left:14px;right:14px;top:3px;bottom:3px;background:#f7e6d0}
 .pl:nth-child(1){transform:rotate(-8deg)}.pl:nth-child(2){transform:rotate(5deg)}.pl:nth-child(3){transform:rotate(-3deg)}
 .pl.off{opacity:0;transform:translateY(30px) rotate(40deg)}
+#toys{position:absolute;left:140px;top:calc(6px + var(--safe-t));width:84px}
+#toyTokens{display:flex;gap:2px;height:26px}
+.ty{width:26px;height:26px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));transition:opacity .25s,transform .25s}
+.ty.off{opacity:.28;filter:grayscale(1);transform:rotate(180deg) scale(.82)}
+#toyBar{display:block;height:3px;width:100%;background:#c33a2f;transform:scaleX(0);transform-origin:left;box-shadow:0 0 0 1px rgba(29,26,18,.75)}
+#momCut{position:absolute;right:6px;top:calc(158px + var(--safe-t));width:38vw;max-width:170px;aspect-ratio:1/1;background:#fff repeating-conic-gradient(from 3deg at 50% 46%,#1d1a12 0 2.2deg,#fff 2.2deg 11deg);border:4px solid #1d1a12;outline:3px solid #fff;overflow:hidden;transform:rotate(3deg);animation:cutin .24s cubic-bezier(.2,1.5,.5,1) both}
+#momCut img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#momCut[data-k=phone]{background:#fbe3ea}
+#momCut[data-k=normal]{background:#f4ead3}
+@keyframes cutin{from{transform:translateX(120%) rotate(9deg)}to{transform:rotate(3deg)}}
 .sign{position:absolute;left:50%;top:calc(38px + var(--safe-t));transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:var(--green);color:#f6fff8;border:2.5px solid #f6fff8;padding:4px 10px 4px 6px;min-height:50px;box-shadow:0 2px 6px rgba(0,0,0,.4);white-space:nowrap}
 .man{width:26px;height:32px}
 .arw{width:26px;height:26px;fill:#fff}
@@ -106,4 +116,5 @@ h1 span:last-child{font-size:1.32em}
   .stick{width:112px;height:112px;left:14px;bottom:16px}
   .floss{width:96px;height:116px;right:14px;bottom:20px}.floss .lid{height:40px}.floss small{font-size:15px;bottom:24px}.floss .cut{left:30px}
   .say{font-size:18px;top:92px}
+  #momCut{top:140px;width:32vw}
 }

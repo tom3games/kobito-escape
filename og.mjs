@@ -11,13 +11,13 @@ await muteContext(ctx)
 const p = await ctx.newPage()
 await p.goto(`http://localhost:${PORT}/`); await p.waitForFunction(() => window.__kobReady, null, { timeout: 25000 }); await p.waitForTimeout(800)
 await p.evaluate(() => {
-  kob.start(11); kob.dbg.pause(true)
+  kob.start(12); kob.dbg.pause(true)
   const r = kob.run, me = kob.me
-  r.t = 40; r.lives = 99; const M = r.mom; M.in = true; M.z = 345; M.noz.x = -2; M.noz.y = 26; M.noz.z = 262; M.cool = 99
+  r.t = 40; r.lives = 99; const M = r.mom; M.in = true; M.z = 455; M.noz.x = 72; M.noz.y = 30; M.noz.z = 318; M.cool = 0; M.spotT = 99; M.sucking = false
   const b = r.roombas[0]; b.on = true; b.x = 50; b.z = 262; b.yaw = 3.5; b.chase = true
   const c = r.cat; c.state = 'crouch'; c.T = 99; c.x = -3; c.y = 0; c.z = 275; c.yaw = 2.9; c.to = { x: 22, y: 0, z: 232 }; c.ring = { x: 22, y: 0, z: 232, r: 10 }
   kob.dbg.teleport(26, 12, 240, 0)
-  me.rope = { x: 22, y: 96, z: 300, len: 90, t: 1 }; me.grounded = false; me.vx = -2; me.vy = 3; me.vz = 22
+  me.rope = { x: -30, y: 96, z: 300, len: 90, t: 1 }; me.grounded = false; me.vx = -2; me.vy = 3; me.vz = 22
   kob.cam.hd = -0.08; kob.cam.pitch = -0.25
   kob.cam.off.set(1, 0.6, -10); kob.cam.lookOff.set(-3, 5, 10)
   window.__freeze = false; kob.dbg.render(12); document.getElementById('hud').classList.add('hidden')

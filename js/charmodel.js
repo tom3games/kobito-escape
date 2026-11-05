@@ -1,13 +1,13 @@
 // 人物の見た目（ボーン入りの CC0 キャラ）
 // 自分: KayKit Adventurers 2.0 の Ranger（CC0）をティッシュを巻いた体に塗り替え、Rig_Medium のアニメを当てる
-// おかんと先住のおじさん: Kenney Mini Characters（CC0）
+// 先住のおじさん: Kenney Mini Characters（CC0）
 import * as THREE from 'three'
-import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js'
-import { clone as skClone } from '../vendor/jsm/utils/SkeletonUtils.js'
+import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js?v=2'
+import { clone as skClone } from '../vendor/jsm/utils/SkeletonUtils.js?v=2'
 
 const BASE = 'assets/chars/'
 const A = { ready: false, failed: false, ranger: null, clips: {}, kenney: {} }
-const KENNEY = ['female-d', 'male-f']
+const KENNEY = ['male-f']
 export const charAssets = A
 
 // 色見本（8x4 のグラデーションの升）を塗り替える。升の位置は ranger_texture.png を見て決めた

@@ -40,7 +40,8 @@
 
 ## 人物（3D）
 - assets/chars/Ranger.glb, Rig_Medium_*.glb: KayKit Adventurers 2.0 / Kay Lousberg / CC0（色は塗り替え）
-- assets/chars/character-*.glb: Kenney Mini Characters / Kenney / CC0
+- assets/chars/character-*.glb: Kenney Mini Characters / Kenney / CC0（先住の小人おじさん）
+- img/mom_*.webp, img/face_*.webp: おかんの切り絵。画像生成で作った架空の人物（art/prompts がプロンプト、art/key.py が切り抜き）
 
 ## 家・猫・ルンバ・掃除機
 - 全部このゲームの中でコードから作った形とテクスチャ（素材の持ち込みなし）

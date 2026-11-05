@@ -1,9 +1,14 @@
 // 自動で遊ぶ役（検証とタイトルの背景）。skilled: 上手い／clumsy: 初めての人（遅い・ぶれる）／ground: 地面を走るだけ／idle: 何もしない
+// toyuser: 上手い人が、猫が起きている間だけ近くのネズミへ寄り道／farm: ネズミだけを回って、なくなったら何もしない／farmgo: 先にネズミを使い切ってから非常口へ
 // 人間と同じ入力（moveDir・throttle・wire・wallY）だけを使う
-import { findAnchor } from './runner.js'
-import { WAYS } from './house.js'
+import { findAnchor } from './runner.js?v=2'
+import { WAYS } from './house.js?v=2'
 const P = {
   skilled: { lag: 9, wireGap: 0.3, wireProb: 1, noise: 0.08, dodge: true, relT: 1.7 },
+  toyuser: { lag: 9, wireGap: 0.3, wireProb: 1, noise: 0.08, dodge: true, relT: 1.7, toy: 'near' },
+  farm: { lag: 9, wireGap: 0.3, wireProb: 1, noise: 0.08, dodge: true, relT: 1.7, toy: 'all' },
+  farmgo: { lag: 9, wireGap: 0.3, wireProb: 1, noise: 0.08, dodge: true, relT: 1.7, toy: 'first' },
+  normaltoy: { lag: 18, wireGap: 0.6, wireProb: 0.12, noise: 0.4, dodge: true, relT: 2.2, lost: true, lostGap: 9, toy: 'near' },
   normal: { lag: 18, wireGap: 0.6, wireProb: 0.12, noise: 0.4, dodge: true, relT: 2.2, lost: true, lostGap: 9 },
   clumsy: { lag: 42, wireGap: 1.2, wireProb: 0.03, noise: 1.1, dodge: false, relT: 3.2, lost: true }
 }
@@ -24,6 +29,16 @@ export function botInput(b, r, m, world, dt) {
     if (b.pauseT > 0) { b.pauseT -= dt; b.prevW = false; return {} }
   }
   let gx = w.x, gy = w.y, gz = w.z
+  if (p.toy) {
+    const on = m.toyUses > 0 && m.lure <= 0
+    const live = on ? m.toys.filter(y => y.state === 'idle') : []
+    live.sort((a, c) => Math.hypot(a.x - r.x, a.z - r.z, a.y - r.y) - Math.hypot(c.x - r.x, c.z - r.z, c.y - r.y))
+    const y = live[0]
+    if (p.toy === 'near') { if (y && m.t > 8 && m.cat.state !== 'box' && Math.hypot(y.x - r.x, y.z - r.z, y.y - r.y) < 55) { gx = y.x; gy = y.y; gz = y.z } }
+    else if (y) { gx = y.x; gy = y.y; gz = y.z }
+    else if (p.toy === 'all' && m.toyUses <= 0 && m.lure <= 0) return {}
+    else if (p.toy === 'all' && !y) return {}
+  }
   b.q.push([gx, gy, gz]); [gx, gy, gz] = b.q.length > p.lag ? b.q.shift() : b.q[0]
   b.nT -= dt; if (b.nT <= 0) { b.n = (b.rnd() - 0.5) * p.noise * 2; b.nT = 0.5 + b.rnd() }
   let yaw = Math.atan2(gx - r.x, gz - r.z) + b.n

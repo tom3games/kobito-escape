@@ -20,7 +20,7 @@ for (const [name, bt, opts] of [['chromium', chromium, {}], ['webkit', webkit, {
   await p.waitForTimeout(800)
   const flow = await p.evaluate(() => { kob.dbg.pause(true); kob.dbg.auto('skilled'); kob.dbg.step(60 * 150); kob.dbg.pause(false); return { over: kob.run.over, won: kob.run.won, t: Math.round(kob.run.t) } })
   await p.waitForTimeout(4000)
-  const res = await p.evaluate(() => ({ mode: kob.mode, result: window.__lastResult, stamped: !!window.__stamped, mute: window.__muteOk() }))
+  const res = await p.evaluate(() => ({ mode: kob.mode, result: window.__lastResult, stamped: !!window.__stamped, mute: window.__muteOk(), momArt: kob.momArt.loaded, faces: Object.keys(kob.momArt.faces).length, momKey: kob.mom3d.key, toyTokens: document.querySelectorAll('#toyTokens .ty').length, v: document.querySelector('script[type=module]').src.split('?')[1] }))
   out.push(`${name}: flow=${JSON.stringify(flow)} result=${JSON.stringify(res)}`)
   await p.screenshot({ path: `shots/live-${name}.png` })
   const og = await p.evaluate(async () => { const r = await fetch(document.querySelector('meta[property="og:image"]').content); return r.status + ' ' + r.headers.get('content-type') })

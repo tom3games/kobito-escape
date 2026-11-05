@@ -54,7 +54,7 @@ const touch = { hasTouch: true, isMobile: true, deviceScaleFactor: 2 }
 // ---- 釣り合い（bot）。node だけで回す
 const N = 16
 const stats = {}
-for (const k of ['skilled', 'normal', 'clumsy', 'ground', 'idle']) { const rs = []; for (let i = 1; i <= N; i++) rs.push(play(k, i, 300)); stats[k] = rs }
+for (const k of ['skilled', 'toyuser', 'farm', 'farmgo', 'normal', 'clumsy', 'ground', 'idle']) { const rs = []; for (let i = 1; i <= N; i++) rs.push(play(k, i, 300)); stats[k] = rs }
 const med = a => { const s = [...a].sort((p, q) => p - q); return s[s.length >> 1] }
 const wins = k => stats[k].filter(r => r.won).length
 await t('何もしない: 全部負けで一番低い判定（回収）', () => { expect(stats.idle.every(r => !r.won && r.rank === 0), JSON.stringify(stats.idle[0])); return { 秒: med(stats.idle.map(r => r.t)) } })
@@ -75,6 +75,71 @@ await t('部屋の端や高い所に隠れ続けても終わる（延長ホー�
 })
 await t('同じ seed なら同じ展開', () => { const a = play('normal', 5, 200), b = play('normal', 5, 200); expect(JSON.stringify(a) === JSON.stringify(b), JSON.stringify([a, b])) })
 await t('ワイヤー: 開始地点の72向き全部ボタンで掛かる', () => { const rows = sweep(START.x, 0, START.z); const n = rows.filter(r => r.btn).length; expect(n === 72, n); return n })
+
+// ---- ネズミのおもちゃとおかんの顔（node だけで決まること）
+const { createHouse: _ch, TOYS } = await import('./shared/house.js'), { createRunner: _cr, stepRunner: _sr } = await import('./shared/runner.js'), { createRun: _cn, stepRun: _sn, CH: _CH, momFace } = await import('./shared/chase.js')
+const SEED = { plain: 2, ride: 19, box: 8, phone: 1 }
+const mk = (seed, x = 26, y = 0, z = 42) => { const w = _ch(), me = _cr({ id: 'm', spawn: { x, y, z } }); me.y = y; return { me, m: _cn(w, me, seed), w } }
+const adv = (o, sec, cb) => { for (let i = 0; i < sec * 60 && !o.m.over; i++) { o.m.events.length = 0; o.me.events.length = 0; _sr(o.me, {}, 1 / 60, o.w); _sn(o.m, 1 / 60); if (cb) cb(); } }
+const touchToy = (o, id) => { const y = o.m.toys.find(t => t.id === id); Object.assign(o.me, { x: y.x - 2, y: y.y, z: y.z, vx: 6, vy: 0, vz: 0, grounded: true, rope: null, climbing: null }) }
+const far = o => { Object.assign(o.me, { x: -160, y: 180, z: 20, vx: 0, vy: 0, vz: 0 }) }
+await t('おもちゃ: 当たると転がって鳴り、回数が1減る。狙う操作は要らない', () => {
+  const o = mk(SEED.plain); o.m.t = 9; o.m.lives = 99; touchToy(o, 'a'); const y = o.m.toys.find(t => t.id === 'a'), x0 = y.x, z0 = y.z; let sq = 0
+  adv(o, 1, () => { sq += o.m.events.filter(e => e.t === 'toySqueak').length })
+  const moved = Math.hypot(y.x - x0, y.z - z0)
+  expect(o.m.toyUses === _CH.toy.uses - 1 && o.m.lure > 0 && moved > 15 && sq >= 1, JSON.stringify({ u: o.m.toyUses, l: o.m.lure, moved, sq })); return { 転がった: Math.round(moved), 鳴った: sq }
+})
+await t('おもちゃ: 効いている間、猫はおもちゃだけ追う・輪を出さず当たらない・数秒で飽きて戻る', () => {
+  const o = mk(SEED.plain); o.m.t = 20; o.m.lives = 99; o.m.cat.state = 'rest'; o.m.cat.T = 0; touchToy(o, 'c'); o.m.mom.cool = 99; o.m.roombas[0].wait = 99
+  let rings = 0, pounces = 0, minToy = 1e9, secs = 0, y = o.m.toys.find(t => t.id === 'c'), caught0 = o.m.catches.length
+  adv(o, 0.05); Object.assign(o.me, { x: y.x + 3, z: y.z + 3 })   // おもちゃの真横に居続ける
+  while (o.m.lure > 0) { adv(o, 1 / 60, () => { if (o.m.cat.ring) rings++; pounces += o.m.events.filter(e => e.t === 'toySqueak' && !e.soft).length; minToy = Math.min(minToy, Math.hypot(o.m.cat.x - y.x, o.m.cat.z - y.z)); secs += 1 / 60 }); Object.assign(o.me, { x: y.x + 3, y: y.y, z: y.z + 3, vx: 0, vz: 0 }) }
+  expect(rings === 0 && o.m.catches.length === caught0 && minToy < 12 && pounces >= 1 && secs > 5 && secs < 9, JSON.stringify({ rings, c: o.m.catches.length, minToy, pounces, secs }))
+  // 飽きたあとは自分を狙う
+  far(o); let back = false; Object.assign(o.me, { x: 40, y: 0, z: 200 }); adv(o, 14, () => { if (o.m.cat.ring && Math.hypot(o.m.cat.ring.x - o.me.x, o.m.cat.ring.z - o.me.z) < 40) back = true })
+  expect(back, 'cat did not come back'); return { 効いた秒: +secs.toFixed(1), 飛びつき: pounces }
+})
+await t('おもちゃ: 効いている間に別のネズミに触っても減らない', () => {
+  const o = mk(SEED.plain); o.m.t = 20; o.m.lives = 99; touchToy(o, 'a'); adv(o, 0.1); const u = o.m.toyUses; touchToy(o, 'c'); adv(o, 0.1); expect(o.m.toyUses === u && o.m.toys.find(t => t.id === 'c').state === 'idle', u + ' ' + o.m.toyUses)
+})
+await t('おもちゃ: 3回で尽きる。4匹目は転がらず一言だけ', () => {
+  const o = mk(SEED.plain); o.m.t = 20; o.m.lives = 99; const ids = TOYS.map(t => t.id); expect(ids.length > _CH.toy.uses, ids.length)
+  let empty = 0
+  for (let i = 0; i < _CH.toy.uses; i++) { touchToy(o, ids[i]); adv(o, 0.1); expect(o.m.toyUses === _CH.toy.uses - i - 1, 'uses ' + o.m.toyUses); o.m.lure = 0.01; adv(o, 0.05); far(o); adv(o, 0.05) }
+  touchToy(o, ids[_CH.toy.uses]); adv(o, 0.1, () => { empty += o.m.events.filter(e => e.t === 'toyEmpty').length })
+  const y = o.m.toys.find(t => t.id === ids[_CH.toy.uses]); expect(o.m.toyUses === 0 && o.m.lure === 0 && y.state === 'idle' && empty === 1, JSON.stringify({ u: o.m.toyUses, l: o.m.lure, s: y.state, empty })); return { 回数: _CH.toy.uses, 匹: ids.length }
+})
+await t('おもちゃ: 床・家具の上のどれも、家具の中に埋まっていない', () => {
+  const w = _ch(); for (const y of TOYS) { const h = w.nearby(y.x, y.z).filter(o => !o.noHit && !o.oneWay && o.kind !== 'bound' && o.y0 <= y.y + 2 && o.y1 > y.y + 0.5 && Math.abs(y.x - o.cx) < o.hw + 2.4 && Math.abs(y.z - o.cz) < o.hl + 2.4); expect(!h.length, y.id + ' ' + h.map(o => o.name).join()) }
+})
+await t('レア: 猫がルンバに乗っている時はルンバごとおもちゃを追う', () => {
+  const o = mk(SEED.ride); expect(o.m.rare.catOnRoomba, 'seed'); o.m.t = 20; o.m.lives = 99; o.m.mom.cool = 99; o.m.roombas[0].on = true; touchToy(o, 'c'); adv(o, 0.05); far(o); Object.assign(o.me, { x: -160, y: 0, z: 20 })
+  const y = o.m.toys.find(t => t.id === 'c'), b = o.m.roombas[0]; b.x = y.x + 70; b.z = y.z; const d0 = Math.hypot(b.x - y.x, b.z - y.z); let chased = true, minD = 1e9
+  adv(o, 4, () => { minD = Math.min(minD, Math.hypot(b.x - y.x, b.z - y.z)); if (Math.hypot(b.gx - y.x, b.gz - y.z) > 1) chased = false })
+  expect(chased && minD < d0 * 0.6 && o.m.cat.state === 'ride' && o.m.toyUses === 2, JSON.stringify({ chased, minD, d0, st: o.m.cat.state, u: o.m.toyUses })); return { 近づいた: Math.round(d0 - minD) }
+})
+await t('レア: 猫が箱から出ない時は、転がるだけで回数が減らない', () => {
+  const o = mk(SEED.box); expect(o.m.rare.catBox, 'seed'); o.m.t = 20; o.m.lives = 99; touchToy(o, 'a'); adv(o, 0.5); const y = o.m.toys.find(t => t.id === 'a'); expect(o.m.toyUses === _CH.toy.uses && o.m.lure === 0 && o.m.cat.state === 'box' && y.state !== 'idle', JSON.stringify([o.m.toyUses, o.m.lure, o.m.cat.state, y.state]))
+})
+await t('ネズミだけ回る bot は脱出できない。先に使い切る bot も上手い人を超えない', () => { expect(wins('farm') === 0 && wins('farmgo') <= wins('skilled') && wins('toyuser') <= wins('skilled') + 1 && wins('skilled') > wins('clumsy'), [wins('farm'), wins('farmgo'), wins('toyuser'), wins('skilled'), wins('clumsy')].join()); return { 回るだけ: wins('farm'), 先に使い切る: wins('farmgo'), 寄り道: wins('toyuser'), 上手い: wins('skilled'), 回数: N } })
+await t('おかん: 体に重なっても捕まらない。捕まるのは吸い口だけ（当たり判定は絵と無関係）', () => {
+  const o = mk(SEED.plain); o.m.t = 60; o.m.mom.in = true; o.m.mom.z = 200; o.m.roombas[0].wait = 99; o.m.cat.state = 'box'; Object.assign(o.me, { x: 15, y: 0, z: 200 }); o.m.mom.noz.x = 150; o.m.mom.noz.y = 150; o.m.mom.noz.z = 500; o.m.mom.cool = 0
+  const by = []; for (let i = 0; i < 30; i++) { o.m.events.length = 0; _sn(o.m, 1 / 60); by.push(...o.m.catches) }; expect(by.length === 0, JSON.stringify(by))
+  const q = mk(SEED.plain); q.m.t = 60; q.m.mom.in = true; q.m.mom.z = 200; Object.assign(q.me, { x: 100, y: 40, z: 300 }); q.m.mom.noz.x = 100; q.m.mom.noz.y = 41; q.m.mom.noz.z = 300; _sn(q.m, 1 / 60); expect(q.m.catches.length === 1 && q.m.catches[0].by === 'vac', JSON.stringify(q.m.catches))
+  expect(_CH.mom.reach === 150 && _CH.mom.catchR === 4.8 && _CH.mom.suckR === 34, 'CH'); return { reach: _CH.mom.reach, catchR: _CH.mom.catchR, suckR: _CH.mom.suckR }
+})
+await t('おかん: 状況で顔が変わる（ふつう・探す・おった・怒り・勝ち誇り・電話）', () => {
+  const o = mk(SEED.plain); const m = o.m, M = m.mom; const seen = {}
+  m.t = 60; M.in = true; M.z = 200; m.roombas[0].wait = 99; m.cat.state = 'box'
+  Object.assign(o.me, { x: 15, y: 0, z: 290 }); M.noz.x = 150; M.noz.y = 100; M.noz.z = 20; M.spotAt = 60; _sn(m, 1 / 60); seen.normal = momFace(m)
+  Object.assign(o.me, { x: 160, y: 170, z: 500 }); M.wasAim = false; M.spotAt = 1e9; _sn(m, 1 / 60); seen.search = momFace(m)
+  Object.assign(o.me, { x: 15, y: 0, z: 290 }); M.spotAt = -99; M.wasAim = false; m.events.length = 0; _sn(m, 1 / 60); seen.spot = momFace(m); seen.spotEv = m.events.some(e => e.t === 'momSpot')
+  M.spotT = 0; M.noz.x = 15; M.noz.y = 8; M.noz.z = 270; M.cool = 0; m.immune = 9; _sn(m, 1 / 60); seen.angry = momFace(m)
+  M.noz.x = 15; M.noz.y = 1.1; M.noz.z = 290; m.immune = 0; m.lives = 3; o.me.vx = o.me.vy = o.me.vz = 0; _sn(m, 1 / 60); seen.win = momFace(m)
+  M.winT = 0; M.phoneT = 3; seen.phone = momFace(m)
+  const want = { normal: 'normal', search: 'search', spot: 'spot', angry: 'angry', win: 'win', phone: 'phone' }
+  for (const k in want) expect(seen[k] === want[k], JSON.stringify(seen)); expect(seen.spotEv, 'spot event'); return seen
+})
 
 const browser = await chromium.launch(MUTE_LAUNCH)
 const p = await open(browser, touch)
@@ -150,6 +215,47 @@ await t('空中で床をタップすると地面ワイヤーで加速（ボタ�
   })
   expect(r.g && r.v1 > r.v0 + 3, JSON.stringify(r)); return { 加速: +(r.v1 - r.v0).toFixed(1) }
 })
+
+// ---- おかんの切り絵とネズミ（実画面）
+await t('切り絵: 6枚と顔が全部読めている（代わりの形が出ていない）', async () => {
+  const r = await p.evaluate(() => ({ l: kob.momArt.loaded, f: kob.momArt.failed, faces: Object.keys(kob.momArt.faces).length, done: kob.momArt.done })); expect(r.l === 6 && r.f === 0 && r.faces === 6 && r.done, JSON.stringify(r)); return r
+})
+await t('切り絵: 実画面で顔が状況どおりに替わり、絵と寸法が合う', async () => {
+  const r = await p.evaluate(() => {
+    kob.start(2); kob.dbg.pause(true); const m = kob.run, M = m.mom; m.t = 60; m.lives = 99; M.in = true; M.z = 200; const out = {}
+    const look = () => { kob.dbg.render(2); const P = kob.mom3d.paper, im = P.material.map && P.material.map.image; return { k: kob.mom3d.key, url: im && im.src.match(/mom_\w+/)[0], h: Math.round(P.scale.y), vis: P.visible, stub: kob.mom3d.stub.visible } }
+    M.phoneT = 3; out.phone = look(); M.phoneT = 0; M.winT = 3; out.win = look(); M.winT = 0; M.spotT = 3; out.spot = look(); M.spotT = 0; M.sucking = true; out.angry = look(); M.sucking = false; M.dist = 200; M.aim = false; out.search = look(); M.aim = true; out.normal = look()
+    kob.dbg.pause(false); return out
+  })
+  for (const k in r) expect(r[k].k === k && r[k].url === 'mom_' + k && r[k].vis && !r[k].stub && r[k].h >= 118 && r[k].h <= 165, k + JSON.stringify(r[k])); return Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.h]))
+})
+await t('切り絵: ホースは手のパイプの先につながり、吸い口まで届く', async () => {
+  const r = await p.evaluate(() => {
+    kob.start(2); kob.dbg.pause(true); const m = kob.run, M = m.mom; m.t = 60; m.lives = 99; M.in = true; M.z = 200; M.noz.x = 90; M.noz.y = 40; M.noz.z = 300; kob.dbg.teleport(60, 0.1, 340, 3.14); kob.dbg.render(30)
+    const h = kob.mom3d.hose, V = kob.camera.position.constructor, Mx = kob.camera.matrixWorld.constructor, mt = new Mx(), a = new V(), pts = []
+    for (let i = 0; i < h.count; i++) { h.getMatrixAt(i, mt); pts.push(a.setFromMatrixPosition(mt).clone()) }
+    const P = kob.mom3d.paper, hand = new V(); const pose = { h: P.material.map }; const art = kob.mom3d
+    const end = pts[pts.length - 1], d = Math.hypot(end.x - M.noz.x, end.y - M.noz.y - 3, end.z - M.noz.z)
+    const hp = kob.mom3d._h, dHand = Math.min(...pts.map(q => q.distanceTo(hp)))
+    kob.dbg.pause(false); return { dNoz: +d.toFixed(2), dHand: +dHand.toFixed(2) }
+  })
+  expect(r.dNoz < 6 && r.dHand < 3, JSON.stringify(r)); return r
+})
+await t('ネズミ: 実画面で当たると回数の表示が減り、糸が縮み、効かなくなると灰色', async () => {
+  const r = await p.evaluate(() => {
+    kob.start(2); kob.dbg.pause(true); const m = kob.run; m.t = 20; m.lives = 99; const off = () => document.querySelectorAll('#toyTokens .ty.off').length, out = { off0: off(), tokens: document.querySelectorAll('#toyTokens .ty').length }
+    const y = m.toys[0]; kob.dbg.teleport(y.x - 1, y.y + 0.05, y.z, 0); kob.me.vz = 6; kob.dbg.step(3); out.off1 = off(); out.say = document.getElementById('say').textContent; out.bar1 = document.getElementById('toyBar').style.transform; out.snd = Snd.played.squeak
+    kob.dbg.step(120); out.bar2 = document.getElementById('toyBar').style.transform; const s0 = kob.toys3d.items[1].sp.visible; m.toyUses = 0; kob.dbg.render(1); out.sp = [s0, kob.toys3d.items[1].sp.visible]; out.grey = kob.toys3d.items[1].m.material === kob.toys3d.matOff; out.off3 = off(); kob.dbg.pause(false); return out
+  })
+  const sc = s => +s.match(/scaleX\(([\d.]+)/)[1]
+  expect(r.tokens === 3 && r.off0 === 0 && r.off1 === 1 && r.say.length > 3 && sc(r.bar1) > sc(r.bar2) && sc(r.bar2) > 0 && r.snd >= 1 && r.sp[0] && !r.sp[1] && r.grey && r.off3 === 3, JSON.stringify(r)); return r
+})
+await t('おった！: カットインが出て、文字は1つ・自動で引っ込む', async () => {
+  const r = await p.evaluate(() => { kob.start(2); const m = kob.run; m.lives = 99; m.t = 60; m.mom.in = true; m.mom.z = 150; m.mom.spotAt = -99; m.mom.wasAim = false; kob.dbg.teleport(40, 0.1, 200, 0); kob.dbg.pause(true); kob.dbg.step(2); const c = document.getElementById('momCut'); const o = { k: c.dataset.k, shown: !c.classList.contains('hidden'), say: document.getElementById('say').textContent, img: c.firstElementChild.complete && c.firstElementChild.naturalWidth, nText: [...document.querySelectorAll('#hud .say:not(.hidden),#hud .miss:not(.hidden)')].length }; kob.dbg.pause(false); return o })
+  expect(r.k === 'spot' && r.shown && /おった|そこや|見えてる|動いた/.test(r.say) && r.img > 100 && r.nText === 1, JSON.stringify(r))
+  await p.screenshot({ path: ROOT + '/shots/cut-spot.png' })
+  await p.waitForTimeout(1900); const hid = await p.evaluate(() => document.getElementById('momCut').classList.contains('hidden')); expect(hid, 'still shown'); return r
+})
 // ---- 結果（何もしない通しの様式・勝ち）
 const finish = async (q, setup, arg) => { await q.evaluate(setup, arg); await q.waitForFunction(() => window.kob.mode === 'result', null, { timeout: 12000 }); await q.waitForFunction(() => window.__stamped, null, { timeout: 8000 }); return q.evaluate(() => window.__lastResult) }
 await t('何もしない通し（実画面）: ハンコは最低の「回収」', async () => {
@@ -217,6 +323,13 @@ await t('素材（人物）が読めなくても遊べる', async () => {
   await q.goto(URL0); await q.waitForFunction(() => window.__kobReady, null, { timeout: 20000 })
   await q.click('#btnStart'); await q.waitForTimeout(300); const ok = await q.evaluate(() => kob.mode === 'play'); expect(ok && !errs.length, errs.join('|')); await ctx.close()
 })
+await t('切り絵が読めなくても遊べる', async () => {
+  const ctx = await browser.newContext({ locale: 'ja-JP', viewport: { width: 390, height: 844 } }); await muteContext(ctx); await ctx.route('**/img/*.webp*', r => r.abort())
+  const q = await ctx.newPage(); const errs = []; q.on('pageerror', e => errs.push(e.message))
+  await q.goto(URL0); await q.waitForFunction(() => window.__kobReady, null, { timeout: 20000 })
+  await q.click('#btnStart'); await q.waitForTimeout(200)
+  const r = await q.evaluate(() => { kob.dbg.pause(true); kob.run.t = 20; kob.run.lives = 99; kob.dbg.step(3); return { mode: kob.mode, stub: kob.mom3d.stub.visible, failed: kob.momArt.failed } }); expect(r.mode === 'play' && r.stub && r.failed === 6 && !errs.length, JSON.stringify(r) + errs.join('|')); await ctx.close(); return r
+})
 await pr.close()
 // ---- 3サイズ × 全画面（Chromium と WebKit）
 for (const [bName, launch, opts] of [['chromium', () => browser, touch], ['webkit', () => webkit.launch(), touch]]) {
@@ -232,6 +345,11 @@ for (const [bName, launch, opts] of [['chromium', () => browser, touch], ['webki
     await t(`${bName} ${name}: 音を鳴らす操作のあと無音`, async () => { const r = await q.evaluate(() => window.__muteOk()); expect(r, r) })
     await t(`${bName} ${name}: 描けている`, async () => { const v = await glVar(q); expect(v > 200, v); return v })
     await q.screenshot({ path: `${ROOT}/shots/${bName}-${name}-play.png` })
+    await q.evaluate(() => { kob.start(2); kob.dbg.pause(true); const m = kob.run; m.t = 60; m.lives = 99; m.mom.in = true; m.mom.z = 205; m.mom.spotAt = -99; m.mom.wasAim = false; m.mom.noz.x = 60; m.mom.noz.y = 8; m.mom.noz.z = 280; kob.dbg.teleport(26, 0.1, 330, 3.14); kob.cam.pitch = -0.33; kob.dbg.step(2); kob.dbg.render(20) })
+    await q.waitForFunction(() => { const c = document.getElementById('momCut'); return !c.classList.contains('hidden') && c.getBoundingClientRect().right <= innerWidth + 2 }, null, { timeout: 8000 }).catch(() => {})   // ソフト描画の Chromium はコマが遅く、滑り込みの途中で測ってしまう
+    await t(`${bName} ${name}: 切り絵のおかんとカットインが出て、はみ出さない`, async () => { const r = await q.evaluate(() => { const c = document.getElementById('momCut'), b = c.getBoundingClientRect(), s = document.getElementById('btnWire').getBoundingClientRect(), st = document.getElementById('stick').getBoundingClientRect(); return { loaded: kob.momArt.loaded, key: kob.mom3d.key, shown: !c.classList.contains('hidden'), right: b.right, W: innerWidth, bottom: b.bottom, btn: Math.min(s.top, st.top), toys: document.getElementById('toys').getBoundingClientRect().right, sign: document.getElementById('sign').getBoundingClientRect().top, toyB: document.getElementById('toyBar').getBoundingClientRect().bottom, timer: document.getElementById('btnPause').getBoundingClientRect().left } }); expect(r.loaded === 6 && r.key === 'spot' && r.shown && r.bottom < r.btn && r.right <= r.W + 2 && r.toys < r.timer, JSON.stringify(r)); return { 顔: r.key, 下端: Math.round(r.bottom) } })
+    await q.screenshot({ path: `${ROOT}/shots/${bName}-${name}-mom.png` })
+    await q.evaluate(() => { kob.dbg.pause(false); kob.start(31) }); await q.waitForTimeout(200)
     await q.tap('#btnPause'); views.pause = await fit(q); await q.screenshot({ path: `${ROOT}/shots/${bName}-${name}-pause.png` }); await q.tap('#btnResume')
     await q.evaluate(() => { window.__stamped = false; kob.dbg.pause(true); kob.run.lives = 1; const b = kob.run.roombas[0]; b.on = true; b.x = kob.me.x; b.z = kob.me.z + 3; kob.dbg.step(2); kob.dbg.pause(false) })
     await q.waitForFunction(() => window.kob.mode === 'result' && window.__stamped, null, { timeout: 15000 })

@@ -1,7 +1,7 @@
 // 追ってくる物（ルンバ・猫・おかんの掃除機）と勝ち負けのきまり。three.js に依存しない
 // 同じ seed なら同じ展開。レアな出来事は seed のくじで決まる
-import { discHits, surfaceBelow, GOAL, ITEMS, MOM_X, PERCHES, WAYS, START } from './house.js'
-import { RUN } from './runner.js'
+import { discHits, surfaceBelow, GOAL, ITEMS, TOYS, ROOM, MOM_X, PERCHES, WAYS, START } from './house.js?v=2'
+import { RUN } from './runner.js?v=2'
 
 export const CH = {
   lives: 3, immune: 3,
@@ -9,6 +9,8 @@ export const CH = {
   cat: { wake: 8, crouch: 1.0, rest: 2.6, afterHit: 5, ringR: 10, bodyR: 7, leapMax: 125, jumpUp: 92, speed: 78, swipeR: 15, swipeUp: 26, swipeSec: 0.65 },
   mom: { enter: 12, walk: [13, 21], reach: 150, reachY: 150, reachYLate: 200, lateAt: 170, nozV: [16, 26], suckR: 34, suckAcc: 34, catchR: 4.8, cool: 3.6, ramp: 150 },
   slipper: { warn: 1.25, R: 15 },
+  // ネズミのおもちゃ: uses 回まで。lure 秒だけ猫（レアでは猫を乗せたルンバ）が追う。飽きたら bored 秒だけ呆ける
+  toy: { uses: 3, lure: 6.5, touchR: 6.5, touchY: 6, speed: 46, kick: 34, friction: 0.85, crouch: 0.45, pounceRest: 0.3, bored: 1.4 },
   old: { x: -146, y: 135, z: 290, r: 12 }
 }
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v
@@ -24,8 +26,9 @@ export function createRun(world, me, seed = 1) {
     rare, way: 0, best: 0, items: {}, itemsGot: [], airT: 0,
     roombas: [mkRoomba(-30, 165, 0, rnd)],
     cat: { state: rare.catBox ? 'box' : 'nap', x: 105, y: 0, z: 150, yaw: -2.2, T: 0, from: null, to: null, ring: null, ringT: 0, seen: false },
-    mom: { in: false, z: -70, x: MOM_X, yaw: 0, noz: { x: MOM_X + 18, y: 30, z: -40, vx: 0, vy: 0, vz: 0 }, cool: 0, phoneAt: 45 + rnd() * 40, phoneT: 0, slipT: 0, slip: null, slipAt: 40 + rnd() * 50, spoke: 0, sucked: false },
-    oldSeen: false, spokeT: 0
+    mom: { in: false, z: -70, x: MOM_X, yaw: 0, noz: { x: MOM_X + 18, y: 30, z: -40, vx: 0, vy: 0, vz: 0 }, cool: 0, phoneAt: 45 + rnd() * 40, phoneT: 0, slipT: 0, slip: null, slipAt: 40 + rnd() * 50, spoke: 0, sucked: false, aim: false, spotT: 0, spotAt: -99, winT: 0 },
+    oldSeen: false, spokeT: 0,
+    toys: TOYS.map(t => ({ ...t, state: 'idle', vx: 0, vy: 0, vz: 0, spin: 0, sq: 0 })), toyUses: CH.toy.uses, toysUsed: 0, lure: 0, lureToy: null, catBored: 0, toyEmptySaid: false
   }
   return m
 }
@@ -55,7 +58,10 @@ function stepRoomba(m, b, dt) {
   const onFloor = me.y < 7
   const d = Math.hypot(me.x - b.x, me.z - b.z)
   b.chase = onFloor && d < C.sight
-  if (b.chase) { b.gx = me.x; b.gz = me.z }
+  // レア: 猫を乗せたルンバは、おもちゃの間だけ猫の言いなりになる
+  const ridden = m.rare.catOnRoomba && b === m.roombas[0] && m.lure > 0 && m.lureToy
+  if (ridden) { const y = m.lureToy; b.chase = true; b.gx = y.x; b.gz = y.z; if (Math.hypot(y.x - b.x, y.z - b.z) < C.R + 5 && y.state !== 'roll') kickToy(m, y) }
+  else if (b.chase) { b.gx = me.x; b.gz = me.z }
   else {
     // 床を見回る。自分の真下の方へじわじわ寄る
     b.turnT -= dt
@@ -65,7 +71,7 @@ function stepRoomba(m, b, dt) {
   let da = want - b.yaw; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2
   // 回避中は横へ進む
   if (b.bump > 0) { b.bump -= dt } else b.yaw += clamp(da, -3.4 * dt, 3.4 * dt)
-  const v = sp * (b.chase ? 1 : 0.75), nx = b.x + Math.sin(b.yaw) * v * dt, nz = b.z + Math.cos(b.yaw) * v * dt
+  const v = sp * (ridden ? 1.5 : b.chase ? 1 : 0.75), nx = b.x + Math.sin(b.yaw) * v * dt, nz = b.z + Math.cos(b.yaw) * v * dt
   if (!discHits(m.world, nx, nz, C.R)) { b.x = nx; b.z = nz }
   else if (!discHits(m.world, nx, b.z, C.R)) b.x = nx
   else if (!discHits(m.world, b.x, nz, C.R)) b.z = nz
@@ -78,6 +84,8 @@ function stepCat(m, dt) {
   const c = m.cat, me = m.me, C = CH.cat
   if (m.rare.catOnRoomba) { const b = m.roombas[0]; c.x = b.x; c.y = 6; c.z = b.z; c.yaw = b.yaw; c.state = 'ride'; return }
   if (c.state === 'box') return
+  const toy = m.lure > 0 ? m.lureToy : null
+  if (toy && c.state === 'nap') { c.state = 'rest'; c.T = 0.3; m.events.push({ t: 'catWake', quiet: true }) }
   if (c.state === 'nap') { if (m.t >= C.wake) { c.state = 'rest'; c.T = 0.4; m.events.push({ t: 'catWake' }) } return }
   c.T -= dt
   const dh = Math.hypot(me.x - c.x, me.z - c.z), dy = me.y - c.y
@@ -89,9 +97,19 @@ function stepCat(m, dt) {
     }
     return
   }
+  if (c.state === 'rest' && toy) {
+    c.yaw = Math.atan2(toy.x - c.x, toy.z - c.z)
+    if (c.T > 0) return
+    const tx = clamp(toy.x + toy.vx * 0.35, ROOM.x0 + 8, ROOM.x1 - 8), tz = clamp(toy.z + toy.vz * 0.35, ROOM.z0 + 8, ROOM.z1 - 8)
+    const to = { x: tx, y: surfaceBelow(m.world, tx, tz, toy.y + 1), z: tz }
+    c.state = 'crouch'; c.T = CH.toy.crouch; c.to = to; c.ring = null; c.forToy = true   // おもちゃしか見ていない。輪は出さず、当たらない
+    m.events.push({ t: 'crouch', quiet: true })
+    return
+  }
   if (c.state === 'rest') {
     c.yaw = Math.atan2(me.x - c.x, me.z - c.z)
     if (c.T > 0) return
+    if (m.catBored > 0) { c.T = m.catBored; m.catBored = 0; return }   // 飽きて呆けている
     // 壁・カーテンにいて上にいる: 手が届けば前足
     if (dh < C.swipeR && dy > 2 && dy < C.swipeUp) { c.state = 'swipe'; c.T = C.swipeSec; m.events.push({ t: 'swipeWarn' }); return }
     // 飛ぶ先を決める: 自分の少し先。届かない時は自分に近い面へ
@@ -129,11 +147,13 @@ function stepCat(m, dt) {
     c.x = f.x + (to.x - f.x) * k; c.z = f.z + (to.z - f.z) * k
     const y0 = f.y, y1 = to.y, ap = c.apex   // 放物線（頂点 ap を通る）
     c.y = (1 - k) * (1 - k) * y0 + 2 * (1 - k) * k * (2 * ap - (y0 + y1) / 2) + k * k * y1
-    if (Math.hypot(me.x - c.x, me.y + 1 - (c.y + 6), me.z - c.z) < C.bodyR && caught(m, 'cat', c.x, c.y, c.z)) c.hitT = 1
+    if (!c.forToy && Math.hypot(me.x - c.x, me.y + 1 - (c.y + 6), me.z - c.z) < C.bodyR && caught(m, 'cat', c.x, c.y, c.z)) c.hitT = 1
     if (c.T <= 0) {
       c.x = to.x; c.y = to.y; c.z = to.z; c.ring = null; c.state = 'rest'; c.T = c.hitT ? C.afterHit : C.rest; c.hitT = 0
+      if (m.lure > 0 && m.lureToy) { const y = m.lureToy; if (!(c.T === C.afterHit)) c.T = CH.toy.pounceRest; if (Math.hypot(y.x - c.x, y.z - c.z) < 18) kickToy(m, y) }
       m.events.push({ t: 'catLand', x: c.x, y: c.y, z: c.z, near: Math.hypot(me.x - c.x, me.z - c.z) })
-      if (Math.hypot(me.x - c.x, me.z - c.z) < C.ringR && Math.abs(me.y - c.y) < 11 && caught(m, 'cat', c.x, c.y, c.z)) c.T = C.afterHit
+      if (!c.forToy && Math.hypot(me.x - c.x, me.z - c.z) < C.ringR && Math.abs(me.y - c.y) < 11 && caught(m, 'cat', c.x, c.y, c.z)) c.T = C.afterHit
+      c.forToy = false
     }
   }
 }
@@ -152,7 +172,7 @@ function stepMom(m, dt) {
     M.slip.T -= dt
     if (M.slip.T <= 0) {
       const s = M.slip; M.slip = null; m.events.push({ t: 'slap', x: s.x, y: s.y, z: s.z })
-      if (Math.hypot(me.x - s.x, me.z - s.z) < s.r && Math.abs(me.y - s.y) < 8) caught(m, 'slipper', s.x, s.y, s.z)
+      if (Math.hypot(me.x - s.x, me.z - s.z) < s.r && Math.abs(me.y - s.y) < 8) { if (caught(m, 'slipper', s.x, s.y, s.z)) M.winT = 3 }
     }
   }
   // 体: 通路を自分の方へ歩く（自分の少し手前で止まる）
@@ -160,6 +180,8 @@ function stepMom(m, dt) {
   const dz = wantZ - M.z; M.walking = Math.abs(dz) > 2 && v > 0
   if (M.walking) M.z += clamp(dz, -v * dt, v * dt)
   // 吸い口
+  M.spotT = Math.max(0, M.spotT - dt); M.winT = Math.max(0, M.winT - dt)
+  if (M.cool > 0 || M.phoneT > 0) M.aim = false
   const N = M.noz, hx = M.x + 22, hy = 48, hz = M.z + 30
   const reachY = m.t >= C.lateAt ? C.reachYLate : C.reachY
   if (m.t >= C.lateAt && !M.late) { M.late = true; m.events.push({ t: 'late' }) }
@@ -167,7 +189,10 @@ function stepMom(m, dt) {
   if (M.cool <= 0 && M.phoneT <= 0) {
     const dBody = Math.hypot(me.x - M.x, me.y - 60, me.z - M.z)
     const reach = M.late ? 500 : C.reach   // 延長ホース: 部屋の端のカーテンに張り付いていても届く。隠れ続けられない
-    if (dBody < reach && me.y < reachY) { gx = me.x + me.vx * 0.25; gy = me.y + 1.1 + me.vy * 0.2; gz = me.z + me.vz * 0.25 }
+    M.aim = dBody < reach && me.y < reachY
+    if (M.aim && !M.wasAim && m.t - M.spotAt > 7 && m.t > C.enter + 1.5) { M.spotAt = m.t; M.spotT = 1.5; m.events.push({ t: 'momSpot' }) }
+    M.wasAim = M.aim
+    if (M.aim) { gx = me.x + me.vx * 0.25; gy = me.y + 1.1 + me.vy * 0.2; gz = me.z + me.vz * 0.25 }
     else { const a = Math.atan2(me.x - M.x, me.z - M.z); gx = M.x + Math.sin(a) * C.reach * 0.75; gz = M.z + Math.cos(a) * C.reach * 0.75; gy = Math.min(reachY - 10, me.y) }
     sp = C.nozV[0] + (C.nozV[1] - C.nozV[0]) * k
   }
@@ -187,7 +212,76 @@ function stepMom(m, dt) {
     me.vx += dx * a; me.vy += dy * a; me.vz += dz2 * a
     if (me.climbing && d < 14) { me.climbing = null; m.events.push({ t: 'peeled' }) }
   }
-  if (N.active && d < C.catchR && caught(m, 'vac', N.x, N.y, N.z)) M.cool = C.cool
+  if (N.active && d < C.catchR && caught(m, 'vac', N.x, N.y, N.z)) { M.cool = C.cool; M.winT = C.cool; m.events.push({ t: 'momWin' }) }
+}
+
+// おかんの顔（絵の切り替えだけ。当たり判定には関係しない）
+export function momFace(m) {
+  const M = m.mom
+  if (m.over) return m.won ? 'angry' : (m.by === 'vac' || m.by === 'slipper') ? 'win' : 'search'
+  if (M.phoneT > 0) return 'phone'
+  if (M.winT > 0) return 'win'
+  if (M.slip) return 'angry'
+  if (M.spotT > 0) return 'spot'
+  if (M.sucking || (M.noz.active && M.dist < 48)) return 'angry'
+  return M.aim ? 'normal' : 'search'
+}
+// ---------------------------------------------------------------- ネズミのおもちゃ
+function kickToy(m, y, ang) {
+  const a = ang ?? m.rnd() * Math.PI * 2, sp = CH.toy.kick
+  y.state = 'roll'; y.vx = Math.sin(a) * sp; y.vz = Math.cos(a) * sp; y.sq = 0.45
+  m.events.push({ t: 'toySqueak', x: y.x, y: y.y, z: y.z })
+}
+function toyBlocked(w, x, y, z) {
+  const r = 2.4
+  if (x < ROOM.x0 + r || x > ROOM.x1 - r || z < ROOM.z0 + r || z > ROOM.z1 - r) return true
+  for (const o of w.nearby(x, z)) {
+    if (o.noHit || o.oneWay || o.kind === 'bound' || o.y0 > y + 2 || o.y1 <= y + 0.5) continue
+    if (Math.abs(x - o.cx) < o.hw + r && Math.abs(z - o.cz) < o.hl + r) return true
+  }
+  return false
+}
+function stepToy(m, y, dt) {
+  const v = Math.hypot(y.vx, y.vz)
+  const nx = y.x + y.vx * dt, nz = y.z + y.vz * dt
+  if (toyBlocked(m.world, nx, y.y, y.z)) { y.vx *= -0.7; m.events.push({ t: 'toySqueak', x: y.x, y: y.y, z: y.z, soft: true }) } else y.x = nx
+  if (toyBlocked(m.world, y.x, y.y, nz)) { y.vz *= -0.7; m.events.push({ t: 'toySqueak', x: y.x, y: y.y, z: y.z, soft: true }) } else y.z = nz
+  const f = surfaceBelow(m.world, y.x, y.z, y.y + 0.5)
+  if (y.y > f + 0.01) { y.vy -= 90 * dt; y.y += y.vy * dt; if (y.y <= f) { y.y = f; y.vy = 0; m.events.push({ t: 'toySqueak', x: y.x, y: y.y, z: y.z, soft: true }) } }
+  else { y.y = f; y.vy = 0; const k = Math.exp(-CH.toy.friction * dt); y.vx *= k; y.vz *= k }
+  y.spin += v * dt * 0.5
+  y.sq -= dt; if (y.sq <= 0 && v > 8) { y.sq = 0.75; m.events.push({ t: 'toySqueak', x: y.x, y: y.y, z: y.z, soft: true }) }
+  if (v < 3 && y.y <= f + 0.01) { y.vx = y.vz = 0; y.state = m.lureToy === y ? 'stop' : 'dead' }
+}
+function stepToys(m, dt) {
+  const me = m.me, C = CH.toy
+  if (m.lure > 0) {
+    m.lure -= dt
+    if (m.lure <= 0) {
+      const y = m.lureToy; m.lure = 0; m.lureToy = null
+      if (y) { y.state = 'dead'; y.vx = y.vz = 0 }
+      m.catBored = C.bored; m.events.push({ t: 'lureEnd', ride: m.rare.catOnRoomba, box: m.rare.catBox })
+    }
+  }
+  for (const y of m.toys) {
+    if (y.state === 'roll' || (y.state === 'dead' && (y.vx || y.vz))) { stepToy(m, y, dt); continue }
+    if (y.state !== 'idle') continue
+    if (Math.hypot(me.x - y.x, me.z - y.z) > C.touchR || Math.abs(me.y - y.y) > C.touchY) continue
+    const ang = Math.hypot(me.vx, me.vz) > 2 ? Math.atan2(me.vx, me.vz) : Math.atan2(y.x - me.x, y.z - me.z)
+    if (m.rare.catBox) {   // 猫は箱から出ない。転がるだけで回数は減らない
+      y.state = 'dead'; y.vx = Math.sin(ang) * C.speed; y.vz = Math.cos(ang) * C.speed; y.sq = 0.5
+      m.events.push({ t: 'toyHit', id: y.id, x: y.x, y: y.y, z: y.z, left: m.toyUses, mode: 'box' }, { t: 'toySqueak', x: y.x, y: y.y, z: y.z })
+      continue
+    }
+    if (m.lure > 0) continue   // 効いている間は触っても使わない（むだにしない）
+    if (m.toyUses <= 0) { if (!m.toyEmptySaid) { m.toyEmptySaid = true; m.events.push({ t: 'toyEmpty', x: y.x, y: y.y, z: y.z }) } continue }
+    m.toyUses--; m.toysUsed++; m.lure = C.lure; m.lureToy = y; m.catBored = 0
+    y.state = 'roll'; y.vx = Math.sin(ang) * C.speed; y.vz = Math.cos(ang) * C.speed; y.sq = 0.5
+    const c = m.cat
+    if (c.state === 'crouch' || c.state === 'swipe') { c.state = 'rest'; c.T = 0.15; c.ring = null; c.to = null }
+    else if (c.state === 'rest') c.T = Math.min(c.T, 0.3)
+    m.events.push({ t: 'toyHit', id: y.id, x: y.x, y: y.y, z: y.z, left: m.toyUses, mode: m.rare.catOnRoomba ? 'ride' : 'cat' }, { t: 'toySqueak', x: y.x, y: y.y, z: y.z })
+  }
 }
 
 export function stepRun(m, dt) {
@@ -198,6 +292,7 @@ export function stepRun(m, dt) {
   for (const b of m.roombas) stepRoomba(m, b, dt)
   if (m.over) return
   if (m.t >= CH.roomba.second && m.roombas.length < 2) { m.roombas.push(mkRoomba(150, 40, m.t - CH.roomba.wake + 2, m.rnd)); m.events.push({ t: 'roomba2' }) }
+  stepToys(m, dt)
   stepCat(m, dt); if (m.over) return
   stepMom(m, dt); if (m.over) return
   // 落ちている物
@@ -241,7 +336,7 @@ export function rankOf(m) {
 export function nearestThreats(m) {
   const me = m.me, out = []
   for (const b of m.roombas) if (b.on) out.push({ k: 'roomba', x: b.x, y: 3, z: b.z, d: Math.hypot(b.x - me.x, b.z - me.z) })
-  const c = m.cat; if (c.state !== 'nap' && c.state !== 'box' && c.state !== 'ride') out.push({ k: 'cat', x: c.x, y: c.y + 8, z: c.z, d: Math.hypot(c.x - me.x, c.y - me.y, c.z - me.z) })
+  const c = m.cat; if (c.state !== 'nap' && c.state !== 'box' && c.state !== 'ride' && !(m.lure > 0)) out.push({ k: 'cat', x: c.x, y: c.y + 8, z: c.z, d: Math.hypot(c.x - me.x, c.y - me.y, c.z - me.z) })
   if (m.mom.in && m.mom.noz.active) out.push({ k: 'vac', x: m.mom.noz.x, y: m.mom.noz.y, z: m.mom.noz.z, d: m.mom.dist })
   return out
 }

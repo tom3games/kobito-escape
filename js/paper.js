@@ -28,6 +28,12 @@ function photo(x, img, px, py, w, h, rot) {
   x.fillStyle = 'rgba(214,194,130,.75)'; x.fillRect(-46, -h / 2 - 22, 92, 26)
   x.restore()
 }
+// おかんの顔（丸いシール）
+function faceStamp(x, im, cx, cy, r, rot) {
+  if (!im) return
+  x.save(); x.translate(cx, cy); x.rotate(rot); x.beginPath(); x.arc(0, 0, r, 0, 7); x.fillStyle = '#fff'; x.fill(); x.clip(); x.drawImage(im, -r, -r, r * 2, r * 2); x.restore()
+  x.save(); x.translate(cx, cy); x.strokeStyle = INK; x.lineWidth = 3; x.beginPath(); x.arc(0, 0, r, 0, 7); x.stroke(); x.restore()
+}
 // d: { lang, won, kind, head, sub, rows:[[label,value]], items:[...], list:[...], note, foot, photo }
 export function drawPaper(cv, d) {
   const x = cv.getContext('2d'), W = cv.width, H = cv.height, en = d.lang === 'en'
@@ -40,6 +46,7 @@ export function drawPaper(cv, d) {
     x.shadowColor = 'rgba(0,0,0,.28)'; x.shadowBlur = 16; x.shadowOffsetY = 6
     x.fillStyle = '#fbf6df'; x.fillRect(0, 0, W - 100, H - 112); x.shadowColor = 'transparent'
     x.strokeStyle = 'rgba(70,110,170,.22)'; x.lineWidth = 2; for (let y = 120; y < H - 130; y += 56) { x.beginPath(); x.moveTo(20, y); x.lineTo(W - 120, y); x.stroke() }
+    faceStamp(x, d.face, W - 100 - 96, 74, 62, -0.08)
     x.fillStyle = INK; x.font = `600 ${en ? 38 : 44}px ${HAND}`; x.fillText(d.head, 34, 86)
     x.font = `600 ${en ? 31 : 33}px ${HAND}`
     let y = 160
@@ -64,6 +71,7 @@ export function drawPaper(cv, d) {
     x.strokeStyle = INK; x.lineWidth = 4; x.strokeRect(26, 26, W - 52, H - 52); x.lineWidth = 1.5; x.strokeRect(34, 34, W - 68, H - 68)
     x.fillStyle = INK; x.font = `700 ${en ? 36 : 42}px ${GOTH}`; x.textAlign = 'center'; x.fillText(d.head, W / 2, 96); x.font = `400 22px ${GOTH}`; x.fillText(d.sub, W / 2, 130); x.textAlign = 'left'
     x.lineWidth = 2; x.beginPath(); x.moveTo(34, 150); x.lineTo(W - 34, 150); x.stroke()
+    faceStamp(x, d.face, W - 94, 92, 52, 0.1)
     let y = 150
     for (const [a, b] of d.rows) {
       x.font = `400 24px ${GOTH}`; x.fillStyle = '#5b4e38'; x.fillText(a, 52, y + 42)

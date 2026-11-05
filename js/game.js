@@ -1,15 +1,15 @@
 // 小人になって家の中を逃げろ。ワイヤーは空中出前 sky-delivery と同じ操作。追う役は shared/chase.js
 import * as THREE from 'three'
-import { FX } from './fx.js'
-import { Q, LOW } from './quality.js'
-import { CharRunnerModel, loadCharAssets, charAssets } from './charmodel.js'
-import { buildHouse } from './house3d.js'
-import { Roomba3d, Cat3d, Mom3d, Slipper3d, buildItems, buildOldMan } from './chasers3d.js'
-import { drawPaper, drawStamp } from './paper.js'
-import { createHouse, START, GOAL, WAYS, F } from '../shared/house.js'
-import { createRunner, stepRunner, findAnchor, rayHit, floorAt, RUN } from '../shared/runner.js'
-import { CH, createRun, stepRun, rankOf, nearestThreats } from '../shared/chase.js'
-import { createBot, botInput } from '../shared/bot.js'
+import { FX } from './fx.js?v=2'
+import { Q, LOW } from './quality.js?v=2'
+import { CharRunnerModel, loadCharAssets, charAssets } from './charmodel.js?v=2'
+import { buildHouse } from './house3d.js?v=2'
+import { Roomba3d, Cat3d, Mom3d, Slipper3d, Toys3d, buildItems, buildOldMan, loadMomArt, momArt } from './chasers3d.js?v=2'
+import { drawPaper, drawStamp } from './paper.js?v=2'
+import { createHouse, START, GOAL, WAYS, F } from '../shared/house.js?v=2'
+import { createRunner, stepRunner, findAnchor, rayHit, floorAt, RUN } from '../shared/runner.js?v=2'
+import { CH, createRun, stepRun, rankOf, nearestThreats, momFace } from '../shared/chase.js?v=2'
+import { createBot, botInput } from '../shared/bot.js?v=2'
 
 window.__jsUp = true
 const $ = id => document.getElementById(id)
@@ -30,9 +30,10 @@ const T = {
       ['roomba', 'ルンバは<b>床だけ</b>。上へ逃げる'],
       ['cat', '猫はおしりを振ったら飛ぶ。<b>赤い輪</b>から離れる'],
       ['vac', 'おかんの掃除機は<b>吸い寄せる</b>。空中でも来る'],
+      ['toy', 'ネズミに<b>走って当たる</b>と猫が追う。3回まで'],
       ['exit', '絆創膏3枚で終わり。<b>冷蔵庫の上の非常口</b>まで']
     ],
-    credit: '音: Work With Sounds / Werstas, Gravity Sound (CC BY 4.0) ほか CC0。人物: KayKit, Kenney (CC0)。詳しくは CREDITS.md',
+    credit: '音: Work With Sounds / Werstas, Gravity Sound (CC BY 4.0) ほか CC0。人物: KayKit, Kenney (CC0)。おかんは画像生成。詳しくは CREDITS.md',
     way: { sofa: 'ソファの上へ', shelf: '本棚の上へ', curtain: 'カーテンの上へ', exit: '冷蔵庫の上へ' },
     dist: d => d >= 100 ? `${Math.floor(d / 100)}m${String(Math.round(d % 100)).padStart(2, '0')}cm` : `${Math.round(d)}cm`, up: d => `上へ${d}cm`, down: d => `下へ${d}cm`,
     paused: 'ちょっと休憩', resume: '戻る', quit: 'やめる',
@@ -40,6 +41,8 @@ const T = {
     momIn: ['おかん', 'ちょっと掃除するでー'],
     momLines: ['なんか動いたな', 'ホコリようさんあるわ', 'これいつのやつ？', 'メルカリで売れるやろか', 'おとん、靴下また裏返しや', 'あの子どこ行ったんやろ', 'ヨーグルト知らん？', 'ゴキブリちゃうやろな', '帰省する言うてたのに'],
     momName: 'おかん', roomba2: 'もう1台買うたで', roach: 'ゴキブリや！！', roachMiss: 'どこ行ったんや', phone: 'ほんでな、あの奥さんがな', phoneEnd: 'ほな切るわ', late: '延長ホース出すで',
+    spotLines: ['おった！', 'そこや！', '見えてるで！', '動いたな！'],
+    toyLines: ['猫、298円に夢中', '血統書つきやのに', 'おもちゃに負ける猫', '命より298円'], toyRide: 'ルンバごと追っていった', toyBox: '猫は箱のほうが好き', toyEmpty: 'もうネズミは効かへん', lureEnd: '猫、飽きた', lureEndRide: 'ルンバ、我に返った', hintToy: 'ネズミで猫が釣れる',
     catBox: '猫は箱から出ない', catRide: '猫がルンバに乗っている', catWake: '猫が起きた',
     caught: { roomba: 'ルンバにはねられた', cat: 'ねこパンチ', vac: 'ホースに詰まって吐かれた', slipper: 'スリッパの直撃' },
     peeled: '壁からはがされた', oldMan: ['先住の小人', 'デュフフ ここ18年住んでる'], oldGive: '絆創膏をもらった',
@@ -72,6 +75,7 @@ const T = {
       ['roomba', 'The Roomba stays <b>on the floor</b>. Go up'],
       ['cat', 'When the cat wiggles, it jumps. Leave the <b>red ring</b>'],
       ['vac', 'Mom\'s vacuum <b>sucks you in</b>, even in mid-air'],
+      ['toy', '<b>Run into</b> a toy mouse and the cat chases it. 3 uses'],
       ['exit', 'Three bandages and you are done. Reach the <b>exit on top of the fridge</b>']
     ],
     credit: 'Sounds: Work With Sounds / Werstas, Gravity Sound (CC BY 4.0) and CC0 packs. Characters: KayKit, Kenney (CC0). See CREDITS.md',
@@ -82,6 +86,8 @@ const T = {
     momIn: ['Mom', 'Time to vacuum!'],
     momLines: ['Something moved', 'So much dust', 'How old is this?', 'Could I sell this online?', 'Dad, your socks again', 'Where did my boy go?', 'Seen my yogurt?', 'Better not be a roach', 'He said he was visiting'],
     momName: 'Mom', roomba2: 'I bought another one', roach: 'A ROACH!!', roachMiss: 'Where did it go', phone: 'So anyway, that neighbor', phoneEnd: 'Okay, bye now', late: 'Getting the long hose',
+    spotLines: ['GOTCHA!', 'THERE!', 'I SEE YOU!', 'IT MOVED!'],
+    toyLines: ['Pedigree cat, $2 toy', 'Cat has new priorities', 'Beaten by a toy', 'Worth more than you'], toyRide: 'The Roomba went too', toyBox: 'The box is better', toyEmpty: 'The cat is over mice', lureEnd: 'Cat got bored', lureEndRide: 'Roomba snapped out of it', hintToy: 'Mouse toys lure the cat',
     catBox: 'The cat will not leave its box', catRide: 'The cat is riding the Roomba', catWake: 'The cat woke up',
     caught: { roomba: 'Hit by the Roomba', cat: 'Cat punch', vac: 'Stuck in the hose, spat out', slipper: 'Slipper to the face' },
     peeled: 'Peeled off the wall', oldMan: ['Old resident', 'Doo-fu. Been here 18 years'], oldGive: 'He gave you a bandage',
@@ -112,6 +118,7 @@ const HOW_ICONS = {
   stick: '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="#f2eddf" stroke="#b9ae93" stroke-width="3"/><circle cx="15" cy="15" r="2.3" fill="#4a4336"/><circle cx="25" cy="15" r="2.3" fill="#4a4336"/><circle cx="15" cy="25" r="2.3" fill="#4a4336"/><circle cx="25" cy="25" r="2.3" fill="#4a4336"/></svg>',
   roomba: '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#24262b"/><circle cx="14" cy="15" r="5" fill="#f8f8f4"/><circle cx="26" cy="15" r="5" fill="#f8f8f4"/><circle cx="14" cy="16" r="2.4"/><circle cx="26" cy="16" r="2.4"/></svg>',
   cat: '<svg viewBox="0 0 40 40"><path d="M6 6 L14 13 Q20 11 26 13 L34 6 L35 25 Q33 36 20 36 Q7 36 5 25Z" fill="#d98a3d"/><ellipse cx="14" cy="22" rx="3.5" ry="4.4" fill="#e6cd3e"/><ellipse cx="26" cy="22" rx="3.5" ry="4.4" fill="#e6cd3e"/><rect x="13.3" y="18" width="1.4" height="8"/><rect x="25.3" y="18" width="1.4" height="8"/></svg>',
+  toy: '<svg viewBox="0 0 40 40"><use href="#mouseToy"/></svg>',
   vac: '<svg viewBox="0 0 40 40"><path d="M23 2 L28 4 L22 22 L16 20Z" fill="#8f9499"/><rect x="3" y="21" width="34" height="11" rx="3" fill="#2b2d31"/><rect x="5" y="30" width="30" height="3" fill="#b33a2b"/></svg>',
   exit: '<svg viewBox="0 0 68 76" style="color:#00a65a"><use href="#runner"/></svg>'
 }
@@ -140,7 +147,7 @@ LM.onStart = LM.onProgress = (url, a, b) => { bootP.done = a; bootP.total = b; b
 function bootWatch(onReady) {
   const t0 = performance.now()
   const tick = () => {
-    if (charAssets.ready || charAssets.failed || performance.now() - t0 > 12000) {
+    if (((charAssets.ready || charAssets.failed) && momArt.done) || performance.now() - t0 > 12000) {
       window.__bootDone = true; window.__bootSet && window.__bootSet(1)
       const b = $('boot'); b.classList.add('out'); setTimeout(() => b.classList.add('hidden'), 380)
       onReady(); return
@@ -184,6 +191,8 @@ const roomba3d = [new Roomba3d(scene), new Roomba3d(scene)]
 const cat3d = new Cat3d(scene)
 const mom3d = new Mom3d(scene)
 const slipper3d = new Slipper3d(scene)
+const toys3d = new Toys3d(scene)
+loadMomArt()
 // デンタルフロス
 const ropeMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 5).rotateX(Math.PI / 2).translate(0, 0, 0.5), new THREE.MeshBasicMaterial({ color: 0xeafff5, fog: false }))
 ropeMesh.visible = false; scene.add(ropeMesh)
@@ -294,14 +303,14 @@ function toTitle() {
 }
 function startRun(seed = Math.floor(Math.random() * 1e6)) {
   Snd.init(); sfx('click')
-  mode = 'play'; paused = false; demo = null; endAt = 0; stampD = null; photoCv = null; hitStop = 0; lineT = 11; lineI = seed % 9; hinted = {}; firstWire = false; momDoor = false
+  mode = 'play'; paused = false; demo = null; endAt = 0; stampD = null; photoCv = null; hitStop = 0; lineT = 11; lineI = seed % 9; hinted = {}; firstWire = false; momDoor = false; spotI = seed % 4; toyI = seed % 4; cutT = 0; $('momCut').classList.add('hidden')
   me = createRunner({ id: 'me', spawn: START }); run = createRun(world, me, seed); run.seed = seed
   resetChase3d(); newModel()
   oldMan.g.visible = run.rare.oldMan
   cam.hd = 0; cam.pitch = 0.22; cam.off.set(0, 3, -6); cam.lookOff.set(0, 1, 10)
   show(null)
   $('stick').classList.add('pulse'); $('btnWire').classList.add('pulse')
-  drawPlasters(CH.lives)
+  drawPlasters(CH.lives); drawToys(CH.toy.uses)
   Snd.loop('bgm', 'snd/bgm_play.mp3', 0.15); Snd.loop('amb', 'snd/city_street_loop.wav', 0.1); Snd.loop('frg', 'snd/fridge_loop.wav', 0.0001); Snd.loop('rmb', 'snd/roomba_loop.wav', 0.0001); Snd.loop('vac', 'snd/vacuum_loop.wav', 0.0001); Snd.loop('wind', 'snd/wind_loop.wav', 0.0001); Snd.loop('purr', 'snd/purr_loop.wav', 0.0001)
   say(t('hint1'), 3)
 }
@@ -326,7 +335,9 @@ function say(html, sec) {
   const el = $('say'); el.innerHTML = html; el.classList.remove('hidden'); sayT = Math.max(sec || 0, need)
 }
 const sayWho = (who, line) => say(`<small>${who}</small>${line}`)
-let momDoor = false
+let momDoor = false, spotI = 0, toyI = 0, cutT = 0
+// おかんの顔のカットイン（文字なし。3D の板は遠い・後ろにいることが多いので、顔はここで見せる）
+function momCut(k, sec = 1.5) { const im = momArt.faces[k]; if (!im) return; const el = $('momCut'), i2 = el.firstElementChild; i2.src = im.src; el.dataset.k = k; el.classList.remove('hidden'); el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; cutT = sec; log.push({ src: 'g', t: 'cut', k, at: run ? +run.t.toFixed(2) : 0 }) }
 const momSay = line => sayWho(t('momName'), line)
 function compassAng(gx, gz, px, pz) {
   const e = camera.matrixWorld.elements, fx = -e[8], fz = -e[10], rx = -fz, rz = fx
@@ -337,6 +348,10 @@ const U2CM = 1 / 0.75
 function updateHud(dt) {
   $('tClock').textContent = `${Math.floor(run.t / 60)}:${String(Math.floor(run.t % 60)).padStart(2, '0')}`
   if (plastersN !== run.lives) drawPlasters(run.lives)
+  if (toysN !== run.toyUses) drawToys(run.toyUses)
+  const lk = run.lure > 0 ? run.lure / CH.toy.lure : 0; if ($('toyBar')._k !== lk) { $('toyBar')._k = lk; $('toyBar').style.transform = `scaleX(${lk.toFixed(3)})`; $('toys').classList.toggle('live', lk > 0) }
+  if (cutT > 0) { cutT -= dt; if (cutT <= 0) $('momCut').classList.add('hidden') }
+  if (!hinted.t && run.toyUses > 0 && run.t > 2 && sayT <= 0) for (const y of run.toys) if (y.state === 'idle' && Math.hypot(y.x - me.x, y.y - me.y, y.z - me.z) < 42) { hinted.t = 1; say(t('hintToy')); break }
   const w = WAYS[run.way]
   const nm = t('way')[w.key]; if ($('signName')._v !== nm) { $('signName')._v = nm; $('signName').textContent = nm }
   const dh = Math.hypot(w.x - me.x, w.z - me.z) * U2CM, dy = (w.y - me.y) * U2CM
@@ -363,6 +378,13 @@ function updateHud(dt) {
   for (const k in threatEl) if (seen[k] == null) threatEl[k].classList.add('hidden')
   $('danger').style.opacity = (worst * 0.75).toFixed(2)
 }
+let toysN = -1
+function drawToys(n) {
+  const el = $('toyTokens')
+  if (el.children.length !== CH.toy.uses) el.innerHTML = '<svg class="ty" viewBox="0 0 40 40"><use href="#mouseToy"/></svg>'.repeat(CH.toy.uses)
+  for (let i = 0; i < CH.toy.uses; i++) el.children[i].classList.toggle('off', i >= n)
+  toysN = n
+}
 const threatEl = {}; for (const el of document.querySelectorAll('.threat')) threatEl[el.dataset.k] = el
 
 // ---------------------------------------------------------------- 出来事
@@ -383,16 +405,29 @@ function onRunEvent(e) {
   const C = T[lang]
   if (e.t === 'roombaOn') { sfx('click', { vol: 0.7, rate: 0.7 }); if (!hinted.r) { hinted.r = 1; say(t('hint2')) } }
   else if (e.t === 'roomba2') { momSay(t('roomba2')); sfx('door') }
-  else if (e.t === 'catWake') { sfx('mew', { vol: 0.8 }); say(t('catWake')) }
+  else if (e.t === 'catWake') { sfx('mew', { vol: 0.8 }); if (!e.quiet) say(t('catWake')) }
+  else if (e.t === 'crouch' && e.quiet) sfx('mew', { vol: 0.25, rate: 1.3 })
   else if (e.t === 'crouch') { if (!hinted.c) { hinted.c = 1; say(t('hintCat')) } sfx('mew', { vol: 0.35, rate: 1.1 }) }
   else if (e.t === 'leap') sfx('whoosh', { vol: 0.5, rate: 0.75 })
   else if (e.t === 'catLand') { const nv = clamp(1 - e.near / 120, 0.1, 1); sfx('wood', { vol: nv }); fx.addShake(0.45 * nv); fx.dust(e.x, e.y + 1, e.z, 16, [0.78, 0.72, 0.62], 1.5) }
   else if (e.t === 'swipe') sfx('whoosh', { vol: 0.5, rate: 1.3 })
-  else if (e.t === 'momIn') { sfx('door', { vol: 1 }); sfx('slam', { vol: 0.8, delay: 0.25 }); sayWho(C.momIn[0], C.momIn[1]); fx.addShake(0.6) }
-  else if (e.t === 'phone') { momSay(t('phone')); sfx('click', { rate: 1.4 }) }
+  else if (e.t === 'momIn') { sfx('door', { vol: 1 }); sfx('slam', { vol: 0.8, delay: 0.25 }); sayWho(C.momIn[0], C.momIn[1]); fx.addShake(0.6); momCut('normal', 1.8) }
+  else if (e.t === 'momSpot') { const L = t('spotLines'); momSay(L[spotI++ % L.length]); momCut('spot', 1.4); sfx('grunt', { vol: 0.7, rate: 0.7 }) }
+  else if (e.t === 'momWin') momCut('win', 2)
+  else if (e.t === 'toyHit') {
+    hinted.t = 1
+    if (e.mode === 'box') say(t('toyBox'))
+    else if (e.mode === 'ride') say(t('toyRide'))
+    else { const L = t('toyLines'); say(L[toyI++ % L.length]); sfx('mew', { vol: 0.9, delay: 0.3 }) }
+    fx.dust(e.x, e.y + 1, e.z, 8, [0.78, 0.72, 0.62], 1)
+  }
+  else if (e.t === 'toySqueak') { const d = me ? Math.hypot(e.x - me.x, e.y - me.y, e.z - me.z) : 0, v = clamp(1 - d / 170, 0.08, 1) * (e.soft ? 0.55 : 1); sfx('squeak', { vol: v, rate: 1.05 + Math.random() * 0.4 }) }
+  else if (e.t === 'toyEmpty') say(t('toyEmpty'))
+  else if (e.t === 'lureEnd') { if (!e.box) { say(e.ride ? t('lureEndRide') : t('lureEnd')); sfx('mew', { vol: 0.6, rate: 0.82 }) } }
+  else if (e.t === 'phone') { momSay(t('phone')); sfx('click', { rate: 1.4 }); momCut('phone', 2.4) }
   else if (e.t === 'phoneEnd') momSay(t('phoneEnd'))
-  else if (e.t === 'late') momSay(t('late'))
-  else if (e.t === 'roach') { momSay(t('roach')); sfx('grunt', { vol: 0.9, rate: 0.75 }) }
+  else if (e.t === 'late') { momSay(t('late')); momCut('angry', 1.8) }
+  else if (e.t === 'roach') { momSay(t('roach')); sfx('grunt', { vol: 0.9, rate: 0.75 }); momCut('angry', 1.6) }
   else if (e.t === 'slap') { sfx('slap', { vol: 1 }); sfx('wood', { vol: 0.8 }); fx.addShake(1.1); fx.dust(e.x, e.y + 1, e.z, 28, [0.78, 0.72, 0.62], 2); hitStop = 0.05 }
   else if (e.t === 'peeled') say(t('peeled'))
   else if (e.t === 'item') {
@@ -431,11 +466,11 @@ function showResult() {
   const items = m.itemsGot.map(id => L.itemNames[id])
   let d
   if (m.won) {
-    d = { lang, won: true, head: L.winHead, note: L.winNote, sign: L.winSign, gag: L.winGag[m.seed % L.winGag.length], rows: [[L.winRowTime, L.time(m.t)], [L.winRowCaught, L.times(n)]], items, itemsHead: L.winItems, photo: photoCv }
+    d = { lang, won: true, face: momArt.faces.angry, head: L.winHead, note: L.winNote, sign: L.winSign, gag: L.winGag[m.seed % L.winGag.length], rows: [[L.winRowTime, L.time(m.t)], [L.winRowCaught, L.times(n)]], items, itemsHead: L.winItems, photo: photoCv }
   } else {
     const fm = L.forms[m.by] || L.forms.vac
     d = {
-      lang, won: false, head: fm.head, sub: fm.sub, bg: m.by === 'slipper' ? '#e9ddc8' : m.by === 'cat' ? '#f1e6d3' : '#efe7d2',
+      lang, won: false, face: momArt.faces[m.by === 'vac' || m.by === 'slipper' ? 'win' : m.by === 'cat' ? 'search' : 'normal'], head: fm.head, sub: fm.sub, bg: m.by === 'slipper' ? '#e9ddc8' : m.by === 'cat' ? '#f1e6d3' : '#efe7d2',
       rows: [[L.rowTime, L.time(m.t)], [L.rowPlace, L.place[Math.min(m.way, 4)]], [L.rowCaught, L.times(n)]],
       listHead: L.listHead, list: [...fm.list.map(([a, b]) => ({ t: a, n: b })), { t: fm.you[0], n: fm.you[1], you: true }],
       items, itemsHead: L.itemsHead, noteHead: L.noteHead, note: fm.note[m.seed % fm.note.length], foot: L.foot, photo: photoCv
@@ -589,7 +624,8 @@ function render(dt) {
   if (R) {
     for (let i = 0; i < 2; i++) { if (R.roombas[i]) roomba3d[i].update(R.roombas[i], dt, c); else roomba3d[i].g.visible = false }
     cat3d.update(R.cat, dt, c)
-    mom3d.lookNoz(c.x, c.y + 1, c.z); mom3d.update(R.mom, dt, camera)
+    toys3d.update(R, dt)
+    mom3d.lookNoz(c.x, c.y + 1, c.z); mom3d.update(R.mom, dt, camera, momFace(R))
     slipper3d.update(R.mom.slip, dt)
     if (R.mom.sucking && frameN % 2 === 0) { const N = R.mom.noz, a = Math.random() * 6.28, r0 = 10 + Math.random() * 18; fx.emit && fx.emit(N.x + Math.cos(a) * r0, N.y + (Math.random() - 0.5) * 10, N.z + Math.sin(a) * r0, { vx: -Math.cos(a) * r0 * 2.2, vy: 0, vz: -Math.sin(a) * r0 * 2.2, life: 0.45, size: 0.5, r: 0.85, g: 0.8, b: 0.7, a: 0.7 }) }
     // 落ちている物のきらめき
@@ -637,13 +673,14 @@ function render(dt) {
     if (stampAt <= 0) { drawStamp($('paper'), stampD.text, stampD.col, 1, stampD.won); sfx('slam', { vol: 1 }); sfx(stampD.r >= 3 ? 'win' : stampD.r === 2 ? 'win' : stampD.r === 1 ? 'meh' : 'lose', { vol: 0.8, delay: 0.1 }); stampD = null; window.__stamped = true }
   }
   renderer.render(scene, camera)
-  if (snapNext) { snapNext = false; takePhoto() }
+  // 紙の写真: 吸い口がカメラの前を塞いで真っ黒にならないよう、写す時だけ隠す
+  if (snapNext) { snapNext = false; const nv = mom3d.noz.visible; mom3d.noz.visible = false; renderer.render(scene, camera); takePhoto(); mom3d.noz.visible = nv }
   frameN++
 }
 
 // ---------------------------------------------------------------- 検証用の窓口
 window.kob = {
-  get mode() { return mode }, log, get me() { return me }, get run() { return run }, RUN, CH, world, camera, cam, renderer, GOAL, F, built, get stickObj() { return stick },
+  get mode() { return mode }, log, mom3d, momArt, momFace, toys3d, get me() { return me }, get run() { return run }, RUN, CH, world, camera, cam, renderer, GOAL, F, built, get stickObj() { return stick },
   start: s => startRun(s), toTitle, showResult, setLang: l => { lang = l; applyLang() }, get lang() { return lang }, setPause,
   dbg: {
     pause: on => { dbgPause = on }, step: n => { for (let i = 0; i < n; i++) stepOnce(); render(STEP) }, render: n => { for (let i = 0; i < n; i++) render(1 / 30) },
