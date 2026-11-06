@@ -32,7 +32,7 @@ export async function revealTests({ browser, bName, URL0, ROOT, t, opts = {} }) 
       expect(r.inside && r.sw <= r.W && r.texts <= 2 && [...r.line].length <= 12 && r.frac >= 0.75 && r.snd >= 2, JSON.stringify(r))
       await p.screenshot({ path: `${ROOT}/shots/reveal-${bName}-${name}-${by}.png` })
       const dur = await p.evaluate(waitResult)
-      expect(dur >= 1000 && dur < 1500, 'dur ' + dur)
+      expect(dur >= 1000 && dur < 1900, 'dur ' + dur)   // 途中でスクショを撮るので長めに見る。撮らなければ約1.38秒（2026-11-06 実測）
       const after = await p.evaluate(() => ({ shown: !document.getElementById('reveal').classList.contains('hidden'), paperW: document.getElementById('paper').getBoundingClientRect().width, again: !!document.getElementById('btnAgain').getBoundingClientRect().width, last: window.__lastResult, stamped0: window.__stamped }))
       expect(!after.shown && after.paperW > 180 && after.again && !after.stamped0, JSON.stringify(after))
       expect(by === 'win' ? after.last.won : after.last.by === by, JSON.stringify(after.last))
@@ -97,6 +97,7 @@ export async function revealTests({ browser, bName, URL0, ROOT, t, opts = {} }) 
   const n = await ctx.newPage(); const errs = []; n.on('pageerror', e => errs.push(e.message))
   await n.goto(URL0); await n.waitForFunction(() => window.__kobReady, null, { timeout: 25000 })
   await t(`${bName} 大写し: 絵が読めない時は飛ばして紙を出す`, async () => {
+    await n.waitForFunction(() => kob.momArt.done, null, { timeout: 15000 })   // 読み込みを諦めるまでは待つ仕様
     await n.evaluate(begin, ['vac', 16]); const r = await n.evaluate(() => ({ m: kob.mode, rev: document.getElementById('reveal').classList.contains('hidden') })); expect(r.m === 'result' && r.rev && !errs.length, JSON.stringify(r) + errs.join('|'))
   })
   await ctx.close()

@@ -7,8 +7,11 @@ import { play } from './tools/sim.mjs'
 import { sweep } from './tools/reach.mjs'
 import { START } from './shared/house.js'
 import { revealTests } from './tools/reveal.mjs'
+import { execSync } from 'node:child_process'
+import { slowTests } from './tools/slowload.mjs'
 const ROOT = import.meta.dirname
 mkdirSync(ROOT + '/shots', { recursive: true })
+execSync('node tools/build.mjs', { cwd: ROOT, stdio: 'inherit' })   // js/ を直した分を公開物に入れる
 const PORT = 5776
 const server = spawn(process.execPath, ['server.mjs'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT) } })
 await new Promise(r => setTimeout(r, 400))
@@ -28,7 +31,7 @@ async function open(browser, opts = {}) {
   p.on('pageerror', e => p.errs.push('pageerror ' + e.message))
   p.on('console', m => { if (m.type() === 'error') p.errs.push('console ' + m.text()) })
   p.on('requestfailed', r => { if (!/fonts\.(googleapis|gstatic)/.test(r.url())) p.errs.push('reqfail ' + r.url()) })
-  await p.goto(URL0); await p.waitForFunction(() => window.__kobReady, null, { timeout: 30000 })
+  await p.goto(URL0); await p.waitForFunction(() => window.__kobReady && kob.momArt.done, null, { timeout: 30000 })
   return p
 }
 const overflow = p => p.evaluate(() => {
@@ -336,6 +339,7 @@ await pr.close()
 for (const [bName, launch, opts] of [['chromium', () => browser, touch], ['webkit', () => webkit.launch(), touch]]) {
   const bb = await launch()
   await revealTests({ browser: bb, bName, URL0, ROOT, t, opts })
+  await slowTests({ browser: bb, bName, URL0, t, opts })
   for (const [w, h, name] of SIZES) {
     const q = await open(bb, { viewport: { width: w, height: h }, ...opts })
     const views = {}

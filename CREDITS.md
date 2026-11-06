@@ -45,3 +45,7 @@
 
 ## 家・猫・ルンバ・掃除機
 - 全部このゲームの中でコードから作った形とテクスチャ（素材の持ち込みなし）
+
+## フォント
+- fonts/klee600.woff2: Klee One / Fontworks / SIL OFL 1.1（使う文字だけに切り詰め）
+- fonts/biz400.woff2, fonts/biz700.woff2: BIZ UDPGothic / Motoya, MORISAWA / SIL OFL 1.1（同）

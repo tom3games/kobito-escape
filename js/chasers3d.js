@@ -208,7 +208,7 @@ export class Mom3d {
   }
   setPose(k) {
     if (k === this.key) return
-    const tx = momTex[k]; if (!tx) { if (momArt.done && !this.key) this.stub.visible = true; return }
+    const tx = momTex[k]; if (!tx) { if (!this.key) this.stub.visible = true; return }   // 絵がまだ読めていない間も姿は見せる（見えない掃除機にしない）
     this.key = k; this.mat.map = tx; this.mat.needsUpdate = true; this.paper.visible = true; this.stub.visible = false; this.pop = 1
   }
   update(M, dt, camera, face) {

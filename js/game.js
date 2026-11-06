@@ -133,6 +133,8 @@ function applyLang() {
 
 // ---------------------------------------------------------------- 音（録音素材だけ）
 Snd.muted = store.get('kob.mute') === '1'
+// 効果音のあとに読む順。聞こえて困る物から（題の BGM は題の画面にいる時だけ読む）
+Snd.pre = ['snd/vacuum_loop.wav', 'snd/roomba_loop.wav', 'snd/bgm_play.mp3', 'snd/city_street_loop.wav', 'snd/fridge_loop.wav', 'snd/wind_loop.wav', 'snd/purr_loop.wav']
 Snd.def({
   wire: ['snd/swish1.mp3', 'snd/swish2.mp3', 'snd/swish3.mp3'], pluck: ['snd/pluck1.mp3', 'snd/pluck2.mp3'], whoosh: 'snd/swish5.mp3',
   step: ['snd/step1.mp3', 'snd/step2.mp3'], bonk: ['snd/thwack1.mp3', 'snd/thwack2.mp3'], wood: ['snd/woodhit1.mp3', 'snd/woodhit2.mp3'],
@@ -149,7 +151,7 @@ LM.onStart = LM.onProgress = (url, a, b) => { bootP.done = a; bootP.total = b; b
 function bootWatch(onReady) {
   const t0 = performance.now()
   const tick = () => {
-    if (((charAssets.ready || charAssets.failed) && momArt.done) || performance.now() - t0 > 12000) {
+    if (charAssets.ready || charAssets.failed || performance.now() - t0 > 12000) {   // 最初の画面に要るのは主人公まで。おかんと音は裏で読む
       window.__bootDone = true; window.__bootSet && window.__bootSet(1)
       const b = $('boot'); b.classList.add('out'); setTimeout(() => b.classList.add('hidden'), 380)
       onReady(); return
@@ -194,7 +196,6 @@ const cat3d = new Cat3d(scene)
 const mom3d = new Mom3d(scene)
 const slipper3d = new Slipper3d(scene)
 const toys3d = new Toys3d(scene)
-loadMomArt()
 // デンタルフロス
 const ropeMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 5).rotateX(Math.PI / 2).translate(0, 0, 0.5), new THREE.MeshBasicMaterial({ color: 0xeafff5, fog: false }))
 ropeMesh.visible = false; scene.add(ropeMesh)
@@ -475,7 +476,11 @@ let revealTimer = 0, revealAt = 0
 function startReveal() {
   const m = run, by = m.won ? 'win' : REVEAL[m.by] ? m.by : 'vac', R = REVEAL[by]
   const im = momArt.big[R.face] || momArt.faces[R.face]
-  if (!im) return showResult()   // 絵が読めなかった時は飛ばす
+  if (!im) {   // まだ読み込み中なら少し待つ。読めなかった時だけ飛ばす
+    m.revWait = m.revWait || performance.now()
+    if (!momArt.done && performance.now() - m.revWait < 4000) { endAt = 0.1; return }
+    return showResult()
+  }
   mode = 'reveal'; show('reveal')
   const L = T[lang].reveal[by], line = L[m.seed % L.length], f = $('revFrame')
   f.dataset.k = R.face; f.replaceChildren(im); $('revLine').textContent = line   // 読み込み済みの絵をそのまま置く（白いコマを挟まない）
@@ -727,4 +732,4 @@ window.kob = {
 applyLang()
 toTitle()
 requestAnimationFrame(frame)
-bootWatch(() => { window.__kobReady = true })
+bootWatch(() => { window.__kobReady = true; loadMomArt().then(() => Snd.prefetch()) })
