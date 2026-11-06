@@ -23,7 +23,7 @@ export async function slowTests({ browser, bName, URL0, t, opts }) {
   })
   await t(`${bName}: おかんと音が届く前に始めても遊べて、掃除機が見えないことがない`, async () => {
     let free; const until = new Promise(r => { free = r })
-    const p = await open({ pat: u => /\/(img\/|snd\/)/.test(u.pathname), until })
+    const p = await open({ pat: u => /\/(img\/|snd\/)/.test(u.pathname) && !/hero_atlas/.test(u.pathname), until })
     await p.goto(URL0); await p.waitForFunction(() => window.__kobReady, null, { timeout: 30000 })
     const boot = await p.evaluate(() => ({ done: kob.momArt.done, hidden: document.getElementById('boot').classList.contains('out') }))
     await p.tap('#btnStart'); await p.waitForTimeout(200)
@@ -41,7 +41,7 @@ export async function slowTests({ browser, bName, URL0, t, opts }) {
   })
   await t(`${bName}: 顔が遅れても大写しを待って出す`, async () => {
     let free; const until = new Promise(r => { free = r })
-    const p = await open({ pat: u => /\/img\//.test(u.pathname), until })
+    const p = await open({ pat: u => /\/img\//.test(u.pathname) && !/hero_atlas/.test(u.pathname), until })
     await p.goto(URL0); await p.waitForFunction(() => window.__kobReady, null, { timeout: 30000 })
     await p.tap('#btnStart'); await p.waitForTimeout(150)
     await p.evaluate(() => { window.__revealLast = null; const m = kob.run; m.over = true; m.by = 'vac'; kob.startReveal() })

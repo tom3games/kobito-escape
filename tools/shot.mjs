@@ -17,6 +17,15 @@ await p.waitForTimeout(800)
 const shot = async n => { await p.screenshot({ path: `${ROOT}shots/${n}.png` }); console.log('shot', n) }
 await shot('s-title')
 const scenes = {
+  heroBack: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 0, 60, 0); kob.dbg.render(30) }) },
+  heroRun: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 0, 60, 0); const m = kob.me; m.grounded = true; m.vx = 0; m.vz = 9; kob.dbg.render(9) }) },
+  heroSwing: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 18, 60, 0); const m = kob.me; m.grounded = false; m.rope = { x: 22, y: 60, z: 90, len: 50, t: 1 }; kob.dbg.render(25) }) },
+  heroSwingL: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 18, 60, 0); const m = kob.me; m.grounded = false; m.rope = { x: -20, y: 40, z: 90, len: 40, t: 1 }; kob.dbg.render(25) }) },
+  heroAir: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 12, 60, 0); const m = kob.me; m.grounded = false; m.rope = null; kob.dbg.render(25) }) },
+  heroClimb: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 10, 60, 0); const m = kob.me; m.grounded = false; m.climbing = { nx: 0, nz: -1 }; kob.dbg.render(25) }) },
+  heroDown: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 0, 60, 0); const m = kob.me; m.grounded = true; m.wreck = 5; kob.dbg.render(25) }) },
+  heroSide: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 0, 60, 0); kob.dbg.render(25); kob.me.yaw = 1.57; kob.me.vx = 7; kob.me.vz = 0; kob.dbg.render(2) }) },
+  heroFront: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 0, 60, 0); kob.dbg.render(25); kob.me.yaw = 3.14; kob.dbg.render(2) }) },
   start: async () => { await p.evaluate(() => { kob.start(1); kob.dbg.pause(true); kob.dbg.step(5); kob.dbg.render(30) }) },
   sofa: async () => { await p.evaluate(() => { kob.start(2); kob.dbg.pause(true); kob.dbg.teleport(-60, 0, 150, -1.57); kob.dbg.step(3); kob.dbg.render(30) }) },
   shelf: async () => { await p.evaluate(() => { kob.start(3); kob.dbg.pause(true); kob.dbg.teleport(-90, 40, 266, -1.57); kob.dbg.render(30) }) },

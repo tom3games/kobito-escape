@@ -224,6 +224,27 @@ await t('空中で床をタップすると地面ワイヤーで加速（ボタ�
 await t('切り絵: 6枚と顔が全部読めている（代わりの形が出ていない）', async () => {
   const r = await p.evaluate(() => ({ l: kob.momArt.loaded, f: kob.momArt.failed, faces: Object.keys(kob.momArt.faces).length, done: kob.momArt.done })); expect(r.l === 6 && r.f === 0 && r.faces === 6 && r.done, JSON.stringify(r)); return r
 })
+await t('主人公の切り絵: 動きと向きで絵が替わり、手とフロスがつながる', async () => {
+  const r = await p.evaluate(() => {
+    kob.start(1); kob.dbg.pause(true); kob.dbg.teleport(0, 0, 60, 0); kob.dbg.render(25); const m = kob.me, out = {}
+    const key = () => { kob.dbg.render(2); return kob.hero.key }
+    out.stand = key(); m.vz = 9; out.run = key(); m.vz = 0
+    m.yaw = 1.57; kob.dbg.render(1); out.side = key(); m.vx = 7; out.sideRun = key(); m.vx = 0
+    m.yaw = 3.14; out.front = key(); m.yaw = 0; kob.dbg.render(25)
+    m.grounded = false; out.air = key(); m.climbing = { nx: 0, nz: -1 }; out.climb = key(); m.climbing = null
+    for (const [n, rx] of [['ropeR', 18], ['ropeL', -18]]) {
+      m.rope = { x: m.x + rx, y: m.y + 40, z: m.z + 30, len: 40, t: 1 }; kob.dbg.render(25)
+      const h = kob.hero.handWorld, d = [m.rope.x - h.x, m.rope.y - h.y, m.rope.z - h.z], L = Math.hypot(...d)
+      // 手から糸の先までの向きと、腰から手の向きのずれ（紙を回して手を糸へ向けている）
+      const hipx = h.x - m.x, hipy = h.y - (m.y + 0.85), hipz = h.z - m.z, l2 = Math.hypot(hipx, hipy, hipz)
+      out[n] = { k: kob.hero.key, sx: Math.sign(kob.hero.paper.scale.x), cos: +((d[0] * hipx + d[1] * hipy + d[2] * hipz) / (L * l2)).toFixed(2), dist: +l2.toFixed(2) }
+    }
+    m.rope = null; m.grounded = true; m.wreck = 5; out.down = key(); m.wreck = 0
+    const mat = kob.hero.mat; out.map = !!mat.map; kob.dbg.pause(false); return out
+  })
+  expect(r.stand === 'back_stand' && r.run === 'back_run' && r.side === 'side_stand' && /side_run/.test(r.sideRun) && r.front === 'front_stand' && r.air === 'back_fall' && r.climb === 'back_climb' && r.down === 'flat_down' && r.map, JSON.stringify(r))
+  expect(r.ropeR.k === 'back_reach' && r.ropeL.k === 'back_reach' && r.ropeR.sx !== r.ropeL.sx && r.ropeR.cos > 0.75 && r.ropeL.cos > 0.75 && r.ropeR.dist < 2.2, JSON.stringify(r)); return r.ropeR
+})
 await t('切り絵: 実画面で顔が状況どおりに替わり、絵と寸法が合う', async () => {
   const r = await p.evaluate(() => {
     kob.start(2); kob.dbg.pause(true); const m = kob.run, M = m.mom; m.t = 60; m.lives = 99; M.in = true; M.z = 200; const out = {}
@@ -322,7 +343,7 @@ await t('レアの出方（1000 seed で 5〜40% の間）', async () => {
   for (const k in r) expect(r[k] >= 50 && r[k] <= 400, k + r[k]); return r
 })
 await t('素材（人物）が読めなくても遊べる', async () => {
-  const ctx = await browser.newContext({ locale: 'ja-JP', viewport: { width: 390, height: 844 } }); await muteContext(ctx); await ctx.route('**/*.glb', r => r.abort())
+  const ctx = await browser.newContext({ locale: 'ja-JP', viewport: { width: 390, height: 844 } }); await muteContext(ctx); await ctx.route('**/*.glb', r => r.abort()); await ctx.route('**/hero_atlas.webp*', r => r.abort())
   const q = await ctx.newPage(); const errs = []; q.on('pageerror', e => errs.push(e.message))
   await q.goto(URL0); await q.waitForFunction(() => window.__kobReady, null, { timeout: 20000 })
   await q.click('#btnStart'); await q.waitForTimeout(300); const ok = await q.evaluate(() => kob.mode === 'play'); expect(ok && !errs.length, errs.join('|')); await ctx.close()

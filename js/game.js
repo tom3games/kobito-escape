@@ -2,7 +2,7 @@
 import * as THREE from 'three'
 import { FX } from './fx.js?v=3'
 import { Q, LOW } from './quality.js?v=3'
-import { CharRunnerModel, loadCharAssets, charAssets } from './charmodel.js?v=3'
+import { CharRunnerModel, loadCharAssets, loadKenney, charAssets } from './charmodel.js?v=6'
 import { buildHouse } from './house3d.js?v=3'
 import { Roomba3d, Cat3d, Mom3d, Slipper3d, Toys3d, buildItems, buildOldMan, loadMomArt, momArt } from './chasers3d.js?v=3'
 import { drawPaper, drawStamp } from './paper.js?v=3'
@@ -651,7 +651,7 @@ function render(dt) {
   const c = mode === 'title' ? demo && demo.r : me
   const R = mode === 'title' ? demo && demo.m : run
   if (c && model) {
-    model.update(c, dt)
+    model.update(c, dt, camera)
     model.group.visible = !(R && R.over && !R.won && R.by === 'vac')
     if (c.rope) { const h = model.handWorld; ropeMesh.visible = true; ropeMesh.position.copy(h); ropeMesh.lookAt(c.rope.x, c.rope.y, c.rope.z); ropeMesh.scale.set(1, 1, Math.max(0.1, h.distanceTo(_v.set(c.rope.x, c.rope.y, c.rope.z)))) }
     else ropeMesh.visible = false
@@ -719,6 +719,7 @@ function render(dt) {
 
 // ---------------------------------------------------------------- 検証用の窓口
 window.kob = {
+  get hero() { return model },
   get mode() { return mode }, log, mom3d, momArt, momFace, toys3d, get me() { return me }, get run() { return run }, RUN, CH, world, camera, cam, renderer, GOAL, F, built, get stickObj() { return stick },
   start: s => startRun(s), toTitle, showResult, startReveal, get revealTexts() { return { ja: T.ja.reveal, en: T.en.reveal } }, setLang: l => { lang = l; applyLang() }, get lang() { return lang }, setPause,
   dbg: {
@@ -732,4 +733,4 @@ window.kob = {
 applyLang()
 toTitle()
 requestAnimationFrame(frame)
-bootWatch(() => { window.__kobReady = true; loadMomArt().then(() => Snd.prefetch()) })
+bootWatch(() => { window.__kobReady = true; loadMomArt().then(() => { loadKenney(); Snd.prefetch() }) })
