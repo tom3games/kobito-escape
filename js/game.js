@@ -661,8 +661,8 @@ function render(dt) {
     const d = sun.userData.dir; sun.position.set(c.x + d.x * 210, c.y + d.y * 210, c.z + d.z * 210); sun.target.position.set(c.x, c.y, c.z)
   }
   if (R) {
-    for (let i = 0; i < 2; i++) { if (R.roombas[i]) roomba3d[i].update(R.roombas[i], dt, c); else roomba3d[i].g.visible = false }
-    cat3d.update(R.cat, dt, c)
+    for (let i = 0; i < 2; i++) { if (R.roombas[i]) roomba3d[i].update(R.roombas[i], dt, c, camera); else { roomba3d[i].g.visible = false; roomba3d[i].blob.visible = false } }
+    cat3d.update(R.cat, dt, c, camera)
     toys3d.update(R, dt)
     mom3d.lookNoz(c.x, c.y + 1, c.z); mom3d.update(R.mom, dt, camera, momFace(R))
     slipper3d.update(R.mom.slip, dt)
@@ -719,7 +719,7 @@ function render(dt) {
 
 // ---------------------------------------------------------------- 検証用の窓口
 window.kob = {
-  get hero() { return model },
+  get hero() { return model }, roomba3d, cat3d,
   get mode() { return mode }, log, mom3d, momArt, momFace, toys3d, get me() { return me }, get run() { return run }, RUN, CH, world, camera, cam, renderer, GOAL, F, built, get stickObj() { return stick },
   start: s => startRun(s), toTitle, showResult, startReveal, get revealTexts() { return { ja: T.ja.reveal, en: T.en.reveal } }, setLang: l => { lang = l; applyLang() }, get lang() { return lang }, setPause,
   dbg: {

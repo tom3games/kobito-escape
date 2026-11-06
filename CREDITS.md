@@ -39,6 +39,7 @@
 - snd/city_street_loop.wav: Sunday in the city street noise 1 / cori / Public domain（Wikimedia Commons）
 
 ## 人物（3D）
+- img/chaser_atlas.webp: 猫とルンバの切り絵。このゲームのために画像生成で作成（art/prompts/cat_*.md、rom_*.md）
 - img/hero_atlas.webp: 主人公の切り絵。このゲームのために画像生成で作成（art/prompts/hero_*.md）
 - assets/chars/character-*.glb: Kenney Mini Characters / Kenney / CC0（先住の小人おじさん）
 - img/mom_*.webp, img/face_*.webp: おかんの切り絵。画像生成で作った架空の人物（art/prompts がプロンプト、art/key.py が切り抜き）

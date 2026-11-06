@@ -8,7 +8,7 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="小人になって家の中を逃げろ">
 <meta property="og:description" content="体2cm。デンタルフロスで家具を渡り、ルンバと猫とおかんの掃除機から逃げて冷蔵庫の上の非常口へ。スマホのブラウザで遊べる。">
-<meta property="og:image" content="https://tom3games.github.io/kobito-escape/og.png?v=4">
+<meta property="og:image" content="https://tom3games.github.io/kobito-escape/og.png?v=5">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://tom3games.github.io/kobito-escape/">
@@ -17,8 +17,8 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/biz700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/klee600.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=6">
-<link rel="modulepreload" href="dist/game.js?v=6">
+<link rel="stylesheet" href="style.css?v=7">
+<link rel="modulepreload" href="dist/game.js?v=7">
 </head>
 <body>
 <div id="view"></div>
@@ -137,13 +137,13 @@
   setTimeout(show,45000);
 })();
 </script>
-<script src="sfx.js?v=6"></script>
+<script src="sfx.js?v=7"></script>
 <script>
 // フォント2つを待ってから本体を動かす（家の張り紙に字を描くため）。遅い回線でも1.5秒で先へ進む
 (function(){
   var n=0,tick=function(){n++;window.__bootSet(n*0.1)};
   var f=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('700 16px "BIZ UDPGothic"').then(tick,tick),document.fonts.load('600 16px "Klee One"').then(tick,tick)]):Promise.resolve();
-  Promise.race([f,new Promise(function(r){setTimeout(r,1500)})]).then(function(){return import('./dist/game.js?v=6')}).catch(function(e){console.error(e);throw e});
+  Promise.race([f,new Promise(function(r){setTimeout(r,1500)})]).then(function(){return import('./dist/game.js?v=7')}).catch(function(e){console.error(e);throw e});
 })();
 </script>
 </body>

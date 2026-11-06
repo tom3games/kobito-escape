@@ -1,156 +1,106 @@
-// 追ってくる物の見た目: ルンバ・猫・おかん（巨大）・掃除機。動きは shared/chase.js の状態を読むだけ
+// 追ってくる物の見た目: ルンバ・猫・おかん（巨大）は切り絵、掃除機は3D。動きは shared/chase.js の状態を読むだけ
 import * as THREE from 'three'
 import { charAssets, skClone } from './charmodel.js?v=3'
 import { canvasTex } from './house3d.js?v=3'
 import { ITEMS, TOYS } from '../shared/house.js?v=3'
 import { MOM_ART } from './momart.js?v=3'
 import { CH } from '../shared/chase.js?v=3'
+import { CHASER_ART } from './chaserart.js?v=7'
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o })
 const shadow = m => { m.castShadow = true; return m }
 
-// ---------------------------------------------------------------- ルンバ
-// おかんが目玉シールを貼っている（光る緑の目ではなく、ぎょろぎょろの目で追ってくる）
-export class Roomba3d {
-  constructor(scene) {
-    const g = this.g = new THREE.Group(), R = CH.roomba.R
-    const body = shadow(new THREE.Mesh(new THREE.CylinderGeometry(R * 0.97, R, 5.6, 40), std(0x24262b, { roughness: 0.28, metalness: 0.25 }))); body.position.y = 3.6
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.72, R * 0.76, 0.5, 36), std(0x3a3d44, { roughness: 0.16, metalness: 0.5 })); top.position.y = 6.5
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(3.3, 0.35, 8, 26), std(0xb9bec3, { metalness: 0.8, roughness: 0.25 })); ring.rotation.x = Math.PI / 2; ring.position.set(0, 6.85, -1)
-    this.led = new THREE.Mesh(new THREE.CircleGeometry(2.6, 20), new THREE.MeshBasicMaterial({ color: 0x4fd67a })); this.led.rotation.x = -Math.PI / 2; this.led.position.set(0, 6.9, -1)
-    const bumper = new THREE.Mesh(new THREE.TorusGeometry(R * 0.98, 0.7, 6, 36, Math.PI * 0.9), std(0x4b4d52)); bumper.rotation.x = Math.PI / 2; bumper.rotation.z = Math.PI / 2 - Math.PI * 0.45; bumper.position.y = 2.2
-    g.add(body, top, ring, this.led, bumper)
-    // ブラシ
-    this.brushes = []
-    for (const sx of [-1, 1]) {
-      const b = new THREE.Group(); b.position.set(sx * R * 0.72, 0.5, R * 0.72)
-      for (let i = 0; i < 3; i++) { const h = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 7.5).translate(0, 0, 3.75), std(0x111111)); h.rotation.y = i * 2.09; b.add(h) }
-      g.add(b); this.brushes.push(b)
-    }
-    // 目玉シール
-    this.pupils = []
-    for (const sx of [-1, 1]) {
-      const w = new THREE.Mesh(new THREE.SphereGeometry(2.9, 18, 10).scale(1, 1, 0.45), std(0xf8f8f4, { roughness: 0.2 })); w.position.set(sx * 3.5, 5.6, R * 0.68); w.rotation.x = -0.72
-      const pu = new THREE.Mesh(new THREE.SphereGeometry(1.25, 12, 8), std(0x111111, { roughness: 0.2 })); pu.position.set(0, 0, 1.2); w.add(pu)
-      g.add(w); this.pupils.push(pu)
-    }
-    this.t = 0; g.visible = false; scene.add(g)
+// ---------------------------------------------------------------- 切り絵の紙（猫とルンバ。img/chaser_atlas.webp）
+// カメラの方を向く紙で、見る向きと動きで絵を替える。当たり判定は shared/chase.js のままで絵には関係しない
+let chaserTex = null; const chaserWait = []
+function loadChaserArt(V) {
+  return new Promise(ok => new THREE.TextureLoader().load(`img/chaser_atlas.webp${V}`, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; chaserTex = t; for (const f of chaserWait) f(t); chaserWait.length = 0; ok() }, undefined, () => { console.warn('chaser art failed'); ok() }))
+}
+let blobTex = null
+const getBlobTex = () => blobTex || (blobTex = canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(64, 64, 8, 64, 64, 64); g.addColorStop(0, 'rgba(30,20,10,.5)'); g.addColorStop(1, 'rgba(30,20,10,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }))
+class ChaserPaper {
+  constructor(scene, stub) {
+    const g = this.g = new THREE.Group(); this.tilt = new THREE.Group(); g.add(this.tilt)
+    this.mat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, toneMapped: false, color: 0xfff6e8 })
+    this.paper = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0), this.mat); this.paper.castShadow = true; this.paper.frustumCulled = false; this.paper.visible = false; this.tilt.add(this.paper)
+    this.stub = stub; g.add(stub)   // 絵が届くまでの代わり（見えない敵にしない）
+    this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: getBlobTex(), transparent: true, depthWrite: false })); this.blob.rotation.x = -Math.PI / 2; this.blob.renderOrder = 1; scene.add(this.blob)
+    this.key = null; this.view = 'side'; this.side = 1; this.sx = 1; this.t = 0; this.pop = 0
+    const set = t => { this.mat.map = t; this.mat.needsUpdate = true; this.paper.visible = true; stub.visible = false }
+    if (chaserTex) set(chaserTex); else chaserWait.push(set)
+    g.visible = false; scene.add(g)
   }
-  update(b, dt, me) {
-    const g = this.g; g.visible = true; g.position.set(b.x, 0, b.z); g.rotation.y = b.yaw
-    this.t += dt
-    for (const br of this.brushes) br.rotation.y += dt * 11
-    this.led.material.color.setHex(b.chase ? 0xff4630 : 0x4fd67a)
-    g.position.y = b.chase ? Math.abs(Math.sin(this.t * 30)) * 0.08 : 0
-    for (let i = 0; i < 2; i++) { const p = this.pupils[i]; const a = this.t * (b.chase ? 13 : 3) + i * 2.1; p.position.x = Math.sin(a) * 0.85; p.position.y = Math.cos(a * 1.4) * 0.85 }
+  setPose(k) {
+    if (k === this.key) return
+    this.key = k; this.pop = 1
+    const A = CHASER_ART, p = A.poses[k], uv = this.paper.geometry.attributes.uv, u0 = p.x / A.W, u1 = (p.x + p.w) / A.W, v1 = 1 - p.y / A.H, v0 = 1 - (p.y + p.h) / A.H
+    uv.setXY(0, u0, v1); uv.setXY(1, u1, v1); uv.setXY(2, u0, v0); uv.setXY(3, u1, v0); uv.needsUpdate = true
+  }
+  // 体の向き yaw とカメラの関係（back / side / front）を決める。境目でちらつかないよう幅を持たせる
+  face(x, y, z, yaw, camera) {
+    const cx = camera ? camera.position.x : x, cy = camera ? camera.position.y : y + 30, cz = camera ? camera.position.z : z + 60
+    const b = Math.atan2(cx - x, cz - z); this.g.rotation.y = b
+    this.tilt.rotation.x = -Math.max(-0.5, Math.min(1.2, Math.atan2(cy - (y + 8), Math.hypot(cx - x, cz - z)))) * 0.6
+    const fx = Math.sin(yaw), fz = Math.cos(yaw), d = fx * Math.sin(b) + fz * Math.cos(b), r = fx * Math.cos(b) - fz * Math.sin(b)
+    if (this.view === 'back' ? d > -0.3 : this.view === 'front' ? d < 0.3 : Math.abs(d) > 0.58) this.view = d < -0.45 ? 'back' : d > 0.45 ? 'front' : 'side'
+    if (Math.abs(r) > 0.12) this.side = r > 0 ? 1 : -1
+  }
+  draw(k, flip, dt, { k2 = 1, bob = 0, rot = 0, shakeX = 0, snap = false } = {}) {
+    this.setPose(k); this.pop = Math.max(0, this.pop - dt * 7)
+    this.sx = snap ? flip : this.sx + (flip - this.sx) * Math.min(1, dt * 16)
+    const p = CHASER_ART.poses[k], P = this.paper, sx = Math.abs(this.sx) < 0.05 ? 0.05 * (flip || 1) : this.sx, q = 1 + this.pop * 0.06
+    P.scale.set(p.uw * k2 * sx * (2 - q), p.uh * k2 * q, 1); P.position.set(shakeX, bob, 0); P.rotation.z = rot
   }
 }
 
-// ---------------------------------------------------------------- 猫（コードで組んだ。トラ猫）
-const catFur = () => canvasTex(512, 256, (x, w, h) => {
-  x.fillStyle = '#d98a3d'; x.fillRect(0, 0, w, h)
-  for (let i = 0; i < 3200; i++) { x.strokeStyle = `rgba(${90 + Math.random() * 150},${50 + Math.random() * 90},${10 + Math.random() * 30},.16)`; x.lineWidth = 1; const a = Math.random() * w, b = Math.random() * h; x.beginPath(); x.moveTo(a, b); x.lineTo(a + 8 + Math.random() * 7, b + Math.random() * 3 - 1.5); x.stroke() }
-  x.strokeStyle = 'rgba(120,58,14,.8)'; x.lineCap = 'round'
-  for (let i = 0; i < 15; i++) { x.lineWidth = 8 + Math.random() * 7; const px = 10 + i * 34; x.beginPath(); x.moveTo(px, -4); x.quadraticCurveTo(px + 12, 62, px - 4, 96 + Math.random() * 30); x.stroke() }
-  const g = x.createLinearGradient(0, h * 0.5, 0, h); g.addColorStop(0, 'rgba(247,234,212,0)'); g.addColorStop(1, 'rgba(247,234,212,1)'); x.fillStyle = g; x.fillRect(0, 0, w, h)
-})
-const catFace = () => canvasTex(512, 512, (x, w, h) => {
-  x.fillStyle = '#d98a3d'; x.fillRect(0, 0, w, h)
-  for (let i = 0; i < 2600; i++) { x.strokeStyle = `rgba(${100 + Math.random() * 130},${60 + Math.random() * 70},20,.16)`; x.lineWidth = 1; const a = Math.random() * w, b = Math.random() * h; x.beginPath(); x.moveTo(a, b); x.lineTo(a + Math.random() * 6 - 3, b + 8); x.stroke() }
-  x.strokeStyle = 'rgba(120,58,14,.85)'; x.lineWidth = 11; x.lineCap = 'round'
-  for (const dx of [-34, 0, 34]) { x.beginPath(); x.moveTo(256 + dx, 110); x.lineTo(256 + dx * 0.8, 186); x.stroke() }
-  for (const s of [-1, 1]) { x.beginPath(); x.moveTo(256 + s * 150, 286); x.lineTo(256 + s * 198, 268); x.stroke(); x.beginPath(); x.moveTo(256 + s * 150, 318); x.lineTo(256 + s * 196, 318); x.stroke() }
-  x.fillStyle = '#f7ead4'; x.beginPath(); x.ellipse(256, 358, 88, 62, 0, 0, 7); x.fill()
-  x.fillStyle = '#c9575f'; x.beginPath(); x.moveTo(240, 318); x.lineTo(272, 318); x.lineTo(256, 340); x.closePath(); x.fill()
-  x.strokeStyle = '#3a2413'; x.lineWidth = 6; x.beginPath(); x.moveTo(256, 340); x.lineTo(256, 360); x.moveTo(256, 360); x.quadraticCurveTo(232, 384, 212, 362); x.moveTo(256, 360); x.quadraticCurveTo(280, 384, 300, 362); x.stroke()
-})
-function eye() {
-  const c = document.createElement('canvas'); c.width = 128; c.height = 128
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace
-  const draw = slit => { const x = c.getContext('2d'); x.clearRect(0, 0, 128, 128); x.fillStyle = '#e6cd3e'; x.beginPath(); x.arc(64, 64, 60, 0, 7); x.fill(); x.fillStyle = '#7da32d'; x.beginPath(); x.arc(64, 64, 34, 0, 7); x.fill(); x.fillStyle = '#0d0d0d'; x.beginPath(); x.ellipse(64, 64, slit, 54, 0, 0, 7); x.fill(); x.fillStyle = 'rgba(255,255,255,.9)'; x.beginPath(); x.arc(84, 42, 11, 0, 7); x.fill(); x.lineWidth = 7; x.strokeStyle = '#2a1b0f'; x.beginPath(); x.arc(64, 64, 60, 0, 7); x.stroke(); t.needsUpdate = true }
-  draw(12); t.setSlit = draw
-  return t
-}
-export class Cat3d {
+// ---------------------------------------------------------------- ルンバ
+// おかんが目玉シールを貼っている（追う時は目が暴れて赤く光る）
+export class Roomba3d extends ChaserPaper {
   constructor(scene) {
-    const g = this.g = new THREE.Group(); this.inner = new THREE.Group(); g.add(this.inner)
-    const fur = std(0xffffff, { map: catFur(), roughness: 0.95 }), plain = std(0xd98a3d, { roughness: 0.95 }), white = std(0xf7ead4, { roughness: 1 })
-    // 体: 少し丸めた円柱に球をつなぐ
-    const body = this.body = new THREE.Group(); this.inner.add(body); body.position.y = 11
-    const trunk = shadow(new THREE.Mesh(new THREE.SphereGeometry(9, 24, 16).scale(1.0, 0.95, 2.05), fur)); body.add(trunk)
-    const chest = shadow(new THREE.Mesh(new THREE.SphereGeometry(7.6, 20, 14), fur)); chest.position.set(0, 1.2, 12); body.add(chest)
-    const head = this.head = new THREE.Group(); head.position.set(0, 7, 18); body.add(head)
-    const skull = shadow(new THREE.Mesh(new THREE.SphereGeometry(8, 28, 20).scale(1.12, 0.95, 0.95), std(0xffffff, { map: catFace(), roughness: 0.95 }))); skull.rotation.y = -Math.PI / 2; head.add(skull); this.skull = skull
-    const earG = new THREE.ConeGeometry(3.3, 6.4, 4).rotateY(Math.PI / 4)
-    for (const s of [-1, 1]) {
-      const e = shadow(new THREE.Mesh(earG, plain)); e.position.set(s * 5.2, 7.3, -0.6); e.rotation.z = -s * 0.25; e.scale.z = 0.5; head.add(e)
-      const inr = new THREE.Mesh(new THREE.ConeGeometry(2.1, 4.2, 3), std(0xe8a8a0, { roughness: 1 })); inr.position.set(s * 5.2, 6.8, 0.4); inr.rotation.z = -s * 0.25; inr.scale.z = 0.3; head.add(inr)
-    }
-    { const mz = shadow(new THREE.Mesh(new THREE.SphereGeometry(3.4, 16, 10).scale(1.15, 0.72, 0.75), white)); mz.position.set(0, -2.6, 6.6); head.add(mz); const nose = new THREE.Mesh(new THREE.SphereGeometry(0.72, 10, 6).scale(1.2, 0.8, 0.7), std(0xc9575f)); nose.position.set(0, -1.1, 8.9); head.add(nose) }
-    this.eyeT = eye(); this.eyes = []
-    for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.CircleGeometry(2.05, 22), new THREE.MeshBasicMaterial({ map: this.eyeT, transparent: true })); m.position.set(s * 3.5, 1.6, 7.45); m.rotation.y = s * 0.28; head.add(m); this.eyes.push(m) }
-    // ひげ
-    const wg = []; for (const s of [-1, 1]) for (let i = 0; i < 3; i++) wg.push(0, 0, 0, s * 11, -1 + i * 1.1 + s * 0, -0.8)
-    const wm = new THREE.LineBasicMaterial({ color: 0xffffff }); for (const s of [-1, 1]) { const pts = []; for (let i = 0; i < 3; i++) { pts.push(new THREE.Vector3(s * 3.4, -1.6, 7)); pts.push(new THREE.Vector3(s * 12, -2.6 + i * 1.5, 5)) } const w = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), wm); head.add(w) }
-    // 足
-    this.legs = []
-    for (const [sx, z, y] of [[-1, 11, -1], [1, 11, -1], [-1, -12, -1], [1, -12, -1]]) {
-      const lg = new THREE.Group(); lg.position.set(sx * 5.4, y, z); body.add(lg)
-      const u = shadow(new THREE.Mesh(new THREE.CapsuleGeometry(2.5, 8, 4, 10).translate(0, -5.5, 0), plain)); lg.add(u)
-      const p = shadow(new THREE.Mesh(new THREE.SphereGeometry(2.8, 12, 8).scale(1, 0.72, 1.3), white)); p.position.set(0, -10.2, 0.8); lg.add(p)
-      this.legs.push(lg)
-    }
-    // しっぽ
-    this.tail = []
-    let prev = body, py = 2, pz = -17
-    for (let i = 0; i < 7; i++) { const s = new THREE.Group(); s.position.set(0, py, pz); prev.add(s); const m = shadow(new THREE.Mesh(new THREE.CapsuleGeometry(1.9 - i * 0.14, 3.2, 3, 8).rotateX(Math.PI / 2).translate(0, 0, -2.3), i % 2 ? plain : std(0x8a4a1b, { roughness: 1 }))); s.add(m); this.tail.push(s); prev = s; py = 0; pz = -4.6 }
-    // 箱（レア: 箱に入ってやる気ゼロ）
-    this.box = new THREE.Group()
-    const cm = std(0xbb8f5c, { roughness: 1, side: THREE.DoubleSide })
-    for (const [w, d, x, z] of [[34, 1, 0, 20], [34, 1, 0, -20], [1, 41, -17, 0], [1, 41, 17, 0]]) { const b = shadow(new THREE.Mesh(new THREE.BoxGeometry(w, 15, d), cm)); b.position.set(x, 7.5, z); this.box.add(b) }
-    this.box.visible = false; g.add(this.box)
-    this.t = 0; this.k = 0; this.kWas = ''; scene.add(g)
+    const R = CH.roomba.R, stub = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.97, R, 5.6, 28).translate(0, 3.6, 0), std(0x24262b, { roughness: 0.3 })); stub.castShadow = true
+    super(scene, stub)
+    this.blob.scale.set(R * 2.5, R * 2.2, 1)
+  }
+  update(b, dt, me, camera) {
+    const g = this.g; g.visible = this.blob.visible = true; this.t += dt
+    g.position.set(b.x, 0, b.z); this.blob.position.set(b.x, 0.09, b.z); this.face(b.x, 0, b.z, b.yaw, camera)
+    const ch = b.chase ? '_chase' : '', base = this.view === 'side' ? 'rom_side' : this.view === 'front' ? 'rom_front' : 'rom_back'
+    // 正面と後ろは小刻みに裏返してブラシと目を動かす
+    const tick = Math.floor(this.t * (b.chase ? 9 : 4)) % 2 ? 1 : -1, flip = this.view === 'side' ? this.side : tick
+    this.draw(base + ch, flip, dt, { snap: this.view !== 'side', k2: 1, bob: b.chase ? Math.abs(Math.sin(this.t * 30)) * 0.25 : 0, rot: b.chase ? Math.sin(this.t * 22) * 0.012 : 0 })
+  }
+}
+
+// ---------------------------------------------------------------- 猫（トラ猫）
+export class Cat3d extends ChaserPaper {
+  constructor(scene) {
+    const stub = new THREE.Mesh(new THREE.CapsuleGeometry(10, 12, 4, 12).translate(0, 18, 0), std(0xd98a3d, { roughness: 1 })); stub.castShadow = true
+    super(scene, stub)
+    this.blob.scale.set(46, 34, 1)
     // 着地の輪
     this.ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 44), new THREE.MeshBasicMaterial({ color: 0xff5f3a, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, fog: false })); this.ring.rotation.x = -Math.PI / 2; this.ring.renderOrder = 4; this.ring.visible = false; scene.add(this.ring)
     this.fill = new THREE.Mesh(new THREE.CircleGeometry(1, 44), new THREE.MeshBasicMaterial({ color: 0xff5f3a, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false, fog: false })); this.fill.rotation.x = -Math.PI / 2; this.fill.renderOrder = 4; this.fill.visible = false; scene.add(this.fill)
   }
-  update(c, dt, me) {
-    const g = this.g; this.t += dt; const T = this.t
-    g.position.set(c.x, c.y, c.z); g.rotation.y = c.yaw
-    const st = c.state
-    let wig = 0, tail = Math.sin(T * 2.2) * 0.25, headP = 0, stretch = 0, sit = 0
-    const B = this.body, L = this.legs
-    if (st === 'nap') { sit = 1; headP = 0.55; tail = Math.sin(T * 0.8) * 0.1 }
-    else if (st === 'box') { sit = 1; tail = 0; headP = -0.05 }
-    else if (st === 'ride') { sit = 0.6; headP = -0.08 }
-    else if (st === 'rest') { sit = 0.35 }
-    else if (st === 'crouch') { wig = 1; tail = Math.sin(T * 14) * 0.5 }
-    else if (st === 'leap') { stretch = 1; tail = -0.5 }
-    else if (st === 'swipe') { sit = 0.2 }
-    // 伏せ（おしりを振る）
-    const crouchY = wig ? -3.6 : 0
-    B.position.y += ((11 + crouchY + (sit ? -2.6 * sit : 0)) - B.position.y) * Math.min(1, dt * 10)
-    B.rotation.x += ((wig ? 0.16 : stretch ? -0.28 : sit ? -0.34 * sit : 0) - B.rotation.x) * Math.min(1, dt * 10)
-    B.position.x = wig ? Math.sin(T * 17) * 1.3 : 0
-    B.rotation.y = wig ? Math.sin(T * 17) * 0.1 : 0
-    this.head.rotation.x += (headP - this.head.rotation.x) * Math.min(1, dt * 6)
-    // 足
-    const fold = wig ? 0.8 : sit ? 0.9 * sit : 0
-    for (let i = 0; i < 4; i++) {
-      const lg = L[i], front = i < 2
-      let rot = front ? (stretch ? -1.2 : -0.12 * fold) : (stretch ? 1.1 : fold * 1.05)
-      if (st === 'swipe' && i === 1) rot = -2.2 + Math.sin(T * 26) * 0.5
-      lg.rotation.x += (rot - lg.rotation.x) * Math.min(1, dt * 14)
+  update(c, dt, me, camera) {
+    const g = this.g; this.t += dt; const T = this.t, st = c.state; g.visible = true
+    g.position.set(c.x, c.y, c.z)
+    this.face(c.x, c.y, c.z, c.yaw, camera)
+    const V = this.view, sd = this.side
+    let k, flip = 1, o = {}
+    if (st === 'nap') { k = 'cat_nap'; flip = sd; o.k2 = 1 + Math.sin(T * 1.6) * 0.012 }
+    else if (st === 'box') k = 'cat_box'
+    else if (st === 'ride') { k = 'cat_loaf'; o.k2 = 0.7; o.bob = 3.5 }
+    else if (st === 'crouch') {   // おしりを振る。これが飛ぶ合図
+      k = V === 'side' ? 'cat_side_crouch' : V === 'front' ? 'cat_front_crouch' : 'cat_back_crouch'; flip = V === 'side' ? sd : 1
+      o.shakeX = Math.sin(T * 17) * 1.3; o.rot = Math.sin(T * 17) * 0.05
     }
-    let tp = this.tail, bendX = st === 'leap' ? 0.1 : 0.22
-    for (let i = 0; i < tp.length; i++) { tp[i].rotation.y = Math.sin(T * (wig ? 8 : 2) + i * 0.55) * (wig ? 0.3 : 0.18) + tail * 0.12; tp[i].rotation.x = -bendX * (i === 0 ? 2 : 1) }
-    // 目: 飛ぶ時は丸い瞳、普段は細い
-    const k = st === 'crouch' || st === 'leap' ? 'wide' : st === 'nap' ? 'nap' : 'slit'
-    if (k !== this.kWas) { this.kWas = k; this.eyeT.setSlit(k === 'wide' ? 26 : 10); for (const e of this.eyes) e.scale.y = k === 'nap' ? 0.12 : 1 }
-    this.box.visible = st === 'box'
-    this.inner.scale.setScalar(st === 'box' ? 0.92 : st === 'ride' ? 0.7 : 1)
-    // 自分の方を見る
-    if (me) { const dx = me.x - c.x, dz = me.z - c.z, a = Math.atan2(dx, dz) - c.yaw; this.head.rotation.y = Math.max(-0.8, Math.min(0.8, Math.atan2(Math.sin(a), Math.cos(a)))) }
+    else if (st === 'leap') { k = V === 'front' ? 'cat_front_leap' : 'cat_side_leap'; flip = V === 'front' ? 1 : sd }   // 後ろから見ても横の絵で飛ぶ姿を見せる
+    else if (st === 'swipe') { k = 'cat_side_swipe'; flip = V === 'side' ? sd : (me && me.x !== undefined && ((me.x - c.x) * Math.cos(g.rotation.y) - (me.z - c.z) * Math.sin(g.rotation.y)) < 0 ? -1 : 1); o.rot = Math.sin(T * 26) * 0.06 * flip }
+    else { k = V === 'side' ? 'cat_side_rest' : V === 'front' ? 'cat_front_rest' : 'cat_back_rest'; flip = V === 'side' ? sd : 1; o.rot = Math.sin(T * 1.4) * 0.012 }
+    // ルンバに乗る時はルンバより手前に出して重ならないようにする
+    if (st === 'ride') { const b = g.rotation.y; g.position.x += Math.sin(b) * 1.5; g.position.z += Math.cos(b) * 1.5 }
+    this.draw(k, flip, dt, o)
+    this.blob.visible = st !== 'leap' && st !== 'ride' && c.y < 1; if (this.blob.visible) this.blob.position.set(c.x, c.y + 0.09, c.z)
     // 輪
     const R = c.ring
     this.ring.visible = this.fill.visible = !!R
@@ -175,7 +125,7 @@ export function loadMomArt() {
   const face = k => new Promise(ok => { const im = new Image(); im.onload = () => { momArt.faces[k] = im; ok() }; im.onerror = () => ok(); im.src = `img/face_${k}.webp${V}` })
   // 結果の前の大写し。起動を待たせない（間に合わなければ小さい方を使う）
   const big = k => { const im = new Image(); im.onload = () => { momArt.big[k] = im; if (im.decode) im.decode().catch(() => {}) }; im.src = `img/big_${k}.webp${V}` }
-  return Promise.all(keys.flatMap(k => [one(k), face(k)])).then(() => { momArt.done = true; for (const k of ['win', 'spot', 'phone', 'angry']) big(k) })
+  return Promise.all([loadChaserArt(V), ...keys.flatMap(k => [one(k), face(k)])]).then(() => { momArt.done = true; for (const k of ['win', 'spot', 'phone', 'angry']) big(k) })
 }
 export class Mom3d {
   constructor(scene) {

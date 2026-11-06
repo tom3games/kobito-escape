@@ -9,7 +9,7 @@ const b = await chromium.launch({ ...MUTE_LAUNCH, channel: 'chromium', args: [..
 const ctx = await b.newContext({ locale: 'ja-JP', viewport: { width: 1200, height: 630 } })
 await muteContext(ctx)
 const p = await ctx.newPage()
-await p.goto(`http://localhost:${PORT}/`); await p.waitForFunction(() => window.__kobReady, null, { timeout: 25000 }); await p.waitForTimeout(800)
+await p.goto(`http://localhost:${PORT}/`); await p.waitForFunction(() => window.__kobReady, null, { timeout: 25000 }); await p.waitForFunction(() => kob.momArt.done, null, { timeout: 25000 }); await p.waitForTimeout(800)
 await p.evaluate(() => {
   kob.start(12); kob.dbg.pause(true)
   const r = kob.run, me = kob.me

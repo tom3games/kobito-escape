@@ -245,6 +245,26 @@ await t('主人公の切り絵: 動きと向きで絵が替わり、手とフロ
   expect(r.stand === 'back_stand' && r.run === 'back_run' && r.side === 'side_stand' && /side_run/.test(r.sideRun) && r.front === 'front_stand' && r.air === 'back_fall' && r.climb === 'back_climb' && r.down === 'flat_down' && r.map, JSON.stringify(r))
   expect(r.ropeR.k === 'back_reach' && r.ropeL.k === 'back_reach' && r.ropeR.sx !== r.ropeL.sx && r.ropeR.cos > 0.75 && r.ropeL.cos > 0.75 && r.ropeR.dist < 2.2, JSON.stringify(r)); return r.ropeR
 })
+await t('猫とルンバの切り絵: 状態と向きで絵が替わり、3Dの代わりが消えている', async () => {
+  const r = await p.evaluate(() => {
+    kob.start(3); kob.dbg.pause(true); const m = kob.run, c = m.cat, b = m.roombas[0], out = {}; m.t = 20; m.lives = 99; kob.dbg.teleport(0, 0, 60, 0); kob.dbg.render(30)
+    const C = kob.cat3d, R = kob.roomba3d[0]
+    c.x = 12; c.z = 125; c.y = 0; c.T = 99; c.ring = null
+    const look = (st, yaw) => { c.state = st; c.yaw = yaw; if (st === 'leap') { c.dur = 99; c.from = { x: 12, y: 0, z: 125 }; c.to = { x: 12, y: 0, z: 125 } } kob.dbg.render(1); kob.dbg.render(1); return C.key }
+    out.rest = [look('rest', 3.14), look('rest', 1.57), look('rest', 0)]
+    out.crouch = [look('crouch', 3.14), look('crouch', 1.57), look('crouch', 0)]
+    out.leap = look('leap', 3.14); out.nap = look('nap', 1.57); out.box = look('box', 3.14); out.swipe = look('swipe', 3.14); out.ride = look('ride', 3.14)
+    c.state = 'rest'
+    b.on = true; b.wait = 99; b.x = 3; b.z = 88
+    const rk = (yaw, ch) => { b.yaw = yaw; b.chase = ch; kob.dbg.render(1); kob.dbg.render(1); return R.key }
+    out.rom = [rk(3.14, false), rk(1.57, true), rk(0, true)]
+    out.vis = { paper: C.paper.visible && R.paper.visible, stub: C.stub.visible || R.stub.visible, map: !!C.mat.map && !!R.mat.map }
+    kob.dbg.pause(false); return out
+  })
+  expect(r.rest.join() === 'cat_front_rest,cat_side_rest,cat_back_rest' && r.crouch.join() === 'cat_front_crouch,cat_side_crouch,cat_back_crouch', JSON.stringify(r))
+  expect(r.leap === 'cat_front_leap' && r.nap === 'cat_nap' && r.box === 'cat_box' && r.swipe === 'cat_side_swipe' && r.ride === 'cat_loaf', JSON.stringify(r))
+  expect(r.rom.join() === 'rom_front,rom_side_chase,rom_back_chase' && r.vis.paper && !r.vis.stub && r.vis.map, JSON.stringify(r)); return r.rom
+})
 await t('切り絵: 実画面で顔が状況どおりに替わり、絵と寸法が合う', async () => {
   const r = await p.evaluate(() => {
     kob.start(2); kob.dbg.pause(true); const m = kob.run, M = m.mom; m.t = 60; m.lives = 99; M.in = true; M.z = 200; const out = {}
