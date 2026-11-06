@@ -1,4 +1,4 @@
-// 追ってくる物の見た目: ルンバ・猫・おかん（巨大）は切り絵、掃除機は3D。動きは shared/chase.js の状態を読むだけ
+// 追ってくる物の見た目: ルンバ・猫・おかん（巨大）・掃除機・スリッパは切り絵。動きは shared/chase.js の状態を読むだけ
 import * as THREE from 'three'
 import { charAssets, skClone } from './charmodel.js?v=3'
 import { canvasTex } from './house3d.js?v=3'
@@ -113,7 +113,7 @@ export class Cat3d extends ChaserPaper {
 }
 
 // ---------------------------------------------------------------- おかんと掃除機
-// おかん本体は画像生成の切り絵（img/mom_*.webp）。カメラの方へ縦軸だけ回す板。掃除機の本体・ホース・吸い口は 3D のまま
+// おかん本体は画像生成の切り絵（img/mom_*.webp）。カメラの方へ縦軸だけ回す板。掃除機の本体と吸い口は別の切り絵
 // 当たり判定は shared/chase.js の吸い口だけを見るので、絵を替えても届く範囲は変わらない
 const V = new URL(import.meta.url).search
 const momTex = {}
@@ -138,22 +138,21 @@ export class Mom3d {
     this.stub = new THREE.Mesh(new THREE.CapsuleGeometry(28, 72, 4, 12).translate(0, 64, 0), std(0xb56a7c, { roughness: 1 })); this.stub.visible = false; this.g.add(this.stub)
     // 足元の影
     { const t = canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(64, 64, 8, 64, 64, 64); g.addColorStop(0, 'rgba(30,20,10,.5)'); g.addColorStop(1, 'rgba(30,20,10,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }); this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false })); this.blob.rotation.x = -Math.PI / 2; this.blob.scale.set(100, 62, 1); this.blob.visible = false; this.blob.renderOrder = 1; scene.add(this.blob) }
-    // 掃除機の本体（床を引きずる。赤い昭和の形）
-    const can = this.can = new THREE.Group()
-    const body = shadow(new THREE.Mesh(new THREE.SphereGeometry(15, 24, 14).scale(1.05, 0.72, 1.5), std(0xb5362b, { roughness: 0.3 }))); body.position.y = 13
-    const lid = new THREE.Mesh(new THREE.SphereGeometry(15, 20, 10, 0, 6.3, 0, 1.2).scale(0.8, 0.5, 1.05), std(0x24262b, { roughness: 0.35 })); lid.position.y = 19
-    for (const s of [-1, 1]) { const w = shadow(new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 4, 18).rotateZ(Math.PI / 2), std(0x1b1c1f))); w.position.set(s * 15, 9, -6); can.add(w) }
-    can.add(body, lid); can.visible = false; scene.add(can)
-    // 吸い口
-    const noz = this.noz = new THREE.Group()
-    const head = shadow(new THREE.Mesh(new THREE.BoxGeometry(24, 4.4, 9), std(0x2b2d31, { roughness: 0.4 }))); noz.add(head)
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(21, 2.4, 0.4), new THREE.MeshBasicMaterial({ color: 0x050505 })); mouth.position.set(0, -0.3, 4.6); noz.add(mouth)
-    const bristle = new THREE.Mesh(new THREE.BoxGeometry(22, 0.8, 0.8), std(0xb33a2b)); bristle.position.set(0, -2, 4.3); noz.add(bristle)
-    const neck = shadow(new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 8, 12).rotateX(Math.PI / 2 - 0.6), std(0x8f9499, { metalness: 0.6, roughness: 0.3 }))); neck.position.set(0, 3.2, -4); noz.add(neck)
-    noz.visible = false; scene.add(noz)
-    // ホース（じゃばら。節を並べる）。本体 → 手の金属パイプ → 吸い口 の2本つなぎ
-    this.segN = 36
-    this.hose = new THREE.InstancedMesh(new THREE.CylinderGeometry(2.3, 2.3, 1, 8), std(0x777c80, { roughness: 0.6 }), this.segN); this.hose.frustumCulled = false; this.hose.visible = false; scene.add(this.hose)
+    // 掃除機の本体と吸い口も切り絵（ChaserPaper）。絵が届くまでは仮の形
+    { const st = new THREE.Mesh(new THREE.SphereGeometry(15, 20, 12).scale(1.05, 0.72, 1.2).translate(0, 13, 0), std(0xb5362b, { roughness: 0.4 })); st.castShadow = true; this.canP = new ChaserPaper(scene, st); this.canP.blob.scale.set(46, 32, 1); this.can = this.canP.g }
+    { const st = new THREE.Mesh(new THREE.BoxGeometry(22, 4.4, 9).translate(0, 2.2, 0), std(0x2b2d31, { roughness: 0.4 })); st.castShadow = true; this.nozP = new ChaserPaper(scene, st); this.nozP.blob.scale.set(30, 16, 1); this.noz = this.nozP.g }
+    // ホース: カメラの方を向く帯を3枚重ねる（紙の白い縁、黒い線、じゃばら）。線がなめらかにつながって切り絵に見える
+    this.segN = 36; this.path = Array.from({ length: this.segN + 1 }, () => new THREE.Vector3())
+    this.hose = new THREE.Group(); this.hose.visible = false; scene.add(this.hose)
+    const strip = (color, vc) => {
+      const g = new THREE.BufferGeometry(), n = this.segN * 4, idx = []
+      for (let i = 0; i < this.segN; i++) { const a = i * 4; idx.push(a, a + 1, a + 2, a + 2, a + 1, a + 3) }
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); g.setIndex(idx)
+      if (vc) { const col = new Float32Array(n * 3), c1 = new THREE.Color(0xb7babc), c2 = new THREE.Color(0x777b80); for (let i = 0; i < this.segN; i++) { const c = i % 2 ? c1 : c2; for (let k = 0; k < 4; k++) c.toArray(col, (i * 4 + k) * 3) } g.setAttribute('color', new THREE.BufferAttribute(col, 3)) }
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, vertexColors: !!vc, side: THREE.DoubleSide, toneMapped: false })); m.frustumCulled = false; this.hose.add(m); return m
+    }
+    this.strips = [[strip(0xfffdf6), 3.7, 0], [strip(0x15130f), 3.0, 0.06], [strip(0xffffff, true), 2.3, 0.12]]
+    this._sock = new THREE.Vector3(); this.neck = new THREE.Vector3()
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._a = new THREE.Vector3(); this._b = new THREE.Vector3(); this._c = new THREE.Vector3(); this._d = new THREE.Vector3(); this._h = new THREE.Vector3(); this._e = new THREE.Vector3(); this._s = new THREE.Vector3(); this._p = new THREE.Vector3(); this._t1 = new THREE.Vector3(); this._t2 = new THREE.Vector3(); this._up = new THREE.Vector3(0, 1, 0)
   }
   setPose(k) {
@@ -163,8 +162,8 @@ export class Mom3d {
   }
   update(M, dt, camera, face) {
     this.t += dt
-    if (!M.in) { this.g.visible = false; this.can.visible = this.noz.visible = this.hose.visible = this.blob.visible = false; return }
-    this.g.visible = true; this.can.visible = this.noz.visible = this.hose.visible = this.blob.visible = true
+    if (!M.in) { this.g.visible = false; this.can.visible = this.noz.visible = this.hose.visible = this.blob.visible = this.canP.blob.visible = this.nozP.blob.visible = false; return }
+    this.g.visible = true; this.can.visible = this.noz.visible = this.hose.visible = this.blob.visible = this.canP.blob.visible = this.nozP.blob.visible = true
     this.setPose(face)
     this.g.position.set(M.x, 0, M.z); this.blob.position.set(M.x, 0.08, M.z)
     // 板はカメラの方を向く（縦軸だけ）
@@ -181,33 +180,47 @@ export class Mom3d {
     P.position.set(shake, hop, 0); P.rotation.z = rock
     P.scale.set(pose.w * (Math.abs(this.sx) < 0.04 ? 0.04 * this.flip : this.sx), pose.h * (1 + this.pop * 0.07), 1)
     // 本体
-    const ca = this.can; const cx = M.x - 26, cz = M.z - 22
+    const ca = this.can, CP = this.canP; const cx = M.x - 26, cz = M.z - 22
     ca.position.x += (cx - ca.position.x) * Math.min(1, dt * 2); ca.position.z += (cz - ca.position.z) * Math.min(1, dt * 2)
-    ca.rotation.y = Math.atan2(M.x - ca.position.x, M.z - ca.position.z)
-    // 吸い口: 自分へ向かう
-    const nz = this.noz; nz.position.set(N.x, N.y + Math.sin(T * 34) * (N.active ? 0.2 : 0), N.z)
-    if (this._look) nz.lookAt(this._look)
+    CP.face(ca.position.x, 0, ca.position.z, Math.atan2(M.x - ca.position.x, M.z - ca.position.z), camera)
+    const cv = CP.view; CP.draw('can_' + cv, cv === 'side' ? CP.side : 1, dt, { rot: Math.sin(T * 5) * 0.01 })
+    CP.blob.position.set(ca.position.x, 0.08, ca.position.z)
+    // 吸い口: 自分へ向かう。絵の下端を吸い口の底に合わせる
+    const nz = this.noz, NP = this.nozP, lk = this._look
+    nz.position.set(N.x, N.y - 2.2, N.z)
+    NP.face(N.x, N.y, N.z, lk ? Math.atan2(lk.x - N.x, lk.z - N.z) : Math.atan2(camera.position.x - N.x, camera.position.z - N.z), camera)
+    const nv = NP.view; NP.draw('noz_' + nv, nv === 'side' ? NP.side : 1, dt, { shakeX: N.active ? Math.sin(T * 34) * 0.2 : 0, rot: N.active ? Math.sin(T * 41) * 0.015 : 0 })
+    NP.blob.position.set(N.x, 0.09, N.z); NP.blob.visible = N.y < 40
     // ホース: 手の位置は板の行列から取る（揺れ・裏返しも一緒に動く）
-    this.g.updateMatrixWorld(true)
+    this.g.updateMatrixWorld(true); ca.updateMatrixWorld(true); nz.updateMatrixWorld(true)
     const H = this._h.set(pose.hand[0] - 0.5, pose.hand[1], 0).applyMatrix4(P.matrixWorld)
     H.x += Math.sin(yaw) * 1.5; H.z += Math.cos(yaw) * 1.5   // 紙より少し手前
-    const a = this._a.set(ca.position.x, 22, ca.position.z), c = this._c.set(N.x, N.y + 3, N.z)
+    // 本体の口と吸い口の首は絵の中の位置（0〜1。下から）
+    const SOCK = { front: [0.5, 0.28], side: [0.97, 0.34], back: [0.5, 0.3] }[cv], NECK = { front: [0.5, 0.97], side: [0.09, 0.97], back: [0.5, 0.97] }[nv]
+    this._sock.set(SOCK[0] - 0.5, SOCK[1], 0).applyMatrix4(CP.paper.matrixWorld); this.neck.set(NECK[0] - 0.5, NECK[1], 0).applyMatrix4(NP.paper.matrixWorld)
+    const a = this._a.copy(this._sock), c = this._c.copy(this.neck)
     const bA = this._b.set((a.x + H.x) / 2, Math.min(a.y, H.y) * 0.4, (a.z + H.z) / 2)
     // パイプの向きに出てから吸い口へ曲がる
     const pipe = H.distanceTo(c) * 0.3, rx = Math.cos(yaw) * this.sx, rz = -Math.sin(yaw) * this.sx
-    const bC = this._e.set(H.x + rx * pipe * 0.72, H.y - pipe * 0.72, H.z + rz * pipe * 0.72)
+    // 手のパイプの向きに出てから、吸い口の首へは上から入る
+    const ox = H.x + rx * pipe * 0.72, oz = H.z + rz * pipe * 0.72
+    const bC = this._e.set(c.x + (ox - c.x) * 0.6, c.y + Math.max(3, pipe * 0.18), c.z + (oz - c.z) * 0.6)
     const n1 = 14, Q = (p0, p1, p2, u, out) => { const v = 1 - u; return out.set(v * v * p0.x + 2 * v * u * p1.x + u * u * p2.x, v * v * p0.y + 2 * v * u * p1.y + u * u * p2.y, v * v * p0.z + 2 * v * u * p1.z + u * u * p2.z) }
-    const prev = this._p; Q(a, bA, H, 0, prev)
-    for (let i = 1; i <= this.segN; i++) {
-      const pt = i <= n1 ? Q(a, bA, H, i / n1, this._s) : Q(H, bC, c, (i - n1) / (this.segN - n1), this._s)
-      const d = this._d.subVectors(pt, prev), l = d.length() || 1
-      this._q.setFromUnitVectors(this._up, d.divideScalar(l))
-      const r = 1 + 0.12 * (i % 2)
-      this._m.compose(this._t1.set((pt.x + prev.x) / 2, (pt.y + prev.y) / 2, (pt.z + prev.z) / 2), this._q, this._t2.set(r, l + 0.3, r))
-      this.hose.setMatrixAt(i - 1, this._m)
-      prev.copy(pt)
+    const pts = this.path; Q(a, bA, H, 0, pts[0])
+    for (let i = 1; i <= this.segN; i++) { if (i <= n1) Q(a, bA, H, i / n1, pts[i]); else Q(H, bC, c, (i - n1) / (this.segN - n1), pts[i]) }
+    // 帯: 各点で「進む向き × カメラへの向き」を幅の向きにする
+    const cam = camera.position, wv = this._s, tan = this._d, toC = this._t1, o = this._t2
+    for (const [mesh, hw, lift] of this.strips) {
+      const pa = mesh.geometry.attributes.position, A = pa.array
+      const put = (pi, vi) => {
+        const P0 = pts[pi]; tan.subVectors(pts[Math.min(this.segN, pi + 1)], pts[Math.max(0, pi - 1)]); toC.subVectors(cam, P0).normalize()
+        wv.crossVectors(tan, toC); const l = wv.length() || 1; wv.multiplyScalar(hw / l); o.copy(P0).addScaledVector(toC, lift)
+        A[vi * 3] = o.x + wv.x; A[vi * 3 + 1] = o.y + wv.y; A[vi * 3 + 2] = o.z + wv.z
+        A[(vi + 1) * 3] = o.x - wv.x; A[(vi + 1) * 3 + 1] = o.y - wv.y; A[(vi + 1) * 3 + 2] = o.z - wv.z
+      }
+      for (let i = 0; i < this.segN; i++) { put(i, i * 4); put(i + 1, i * 4 + 2) }
+      pa.needsUpdate = true
     }
-    this.hose.instanceMatrix.needsUpdate = true
   }
   lookNoz(x, y, z) { this._look = this._look || new THREE.Vector3(); this._look.set(x, y, z) }
 }
@@ -257,22 +270,25 @@ export class Toys3d {
 }
 
 // ---------------------------------------------------------------- スリッパ（レア）
-export class Slipper3d {
+export class Slipper3d extends ChaserPaper {
   constructor(scene) {
-    const g = this.g = new THREE.Group()
-    const sole = shadow(new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10).scale(11, 1.2, 24), std(0x8c6239, { roughness: 1 })))
-    const top = shadow(new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10, 0, 6.3, 0, 1.45).scale(10, 8, 12), std(0xd4737e, { roughness: 1 }))); top.position.set(0, 0.4, 10)
-    g.add(sole, top); g.visible = false; scene.add(g)
+    const st = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 8).scale(11, 1.6, 24).translate(0, 2, 0), std(0xd4737e, { roughness: 1 })); st.castShadow = true
+    super(scene, st)
+    this.blob.visible = false
     this.ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40), new THREE.MeshBasicMaterial({ color: 0xff5f3a, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, fog: false })); this.ring.rotation.x = -Math.PI / 2; this.ring.visible = false; scene.add(this.ring)
     this.after = 0
   }
-  update(s, dt) {
+  update(s, dt, camera) {
     if (s) {
       this.g.visible = true; this.ring.visible = true; this.ring.position.set(s.x, s.y + 0.6, s.z); this.ring.scale.setScalar(s.r)
-      const k = Math.max(0, s.T / CH.slipper.warn); this.g.position.set(s.x, s.y + 1 + 150 * k * k, s.z); this.g.rotation.set(k * 1.3, k * 2, 0)
+      const k = Math.max(0, s.T / CH.slipper.warn), y = s.y + 1 + 150 * k * k; this.g.position.set(s.x, y, s.z); this.face(s.x, y, s.z, 0, camera)
+      const above = camera && camera.position.y < y - 8
+      // 頭上から足の裏が迫る。近づくと回りながら横になり、落ちたら床で平たく
+      this.draw(k < 0.02 ? 'slip_side' : above && k > 0.12 ? 'slip_sole' : 'slip_tilt', 1, dt, { snap: true, rot: k * 5, bob: k < 0.02 ? 0 : -8 })
+      const sz = s.r * 2 * (1 - k * 0.6); this.blob.visible = true; this.blob.position.set(s.x, s.y + 0.5, s.z); this.blob.scale.set(sz, sz, 1)
       this.after = 1.1
     } else {
-      this.ring.visible = false
+      this.ring.visible = false; this.blob.visible = false
       if (this.after > 0) { this.after -= dt; if (this.after <= 0) this.g.visible = false }
     }
   }

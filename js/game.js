@@ -295,7 +295,7 @@ function gather() {
 
 // ---------------------------------------------------------------- 画面の切り替え
 function show(id) { for (const s of ['title', 'how', 'pause', 'reveal', 'result']) $(s).classList.toggle('hidden', s !== id); $('hud').classList.toggle('hidden', mode !== 'play'); $('danger').style.opacity = 0; flashA = 0 }
-function resetChase3d() { for (const k in items3d) items3d[k].visible = true; oldMan.g.visible = false; slipper3d.update(null, 9); cat3d.ring.visible = cat3d.fill.visible = false }
+function resetChase3d() { for (const k in items3d) items3d[k].visible = true; oldMan.g.visible = false; slipper3d.update(null, 9, camera); cat3d.ring.visible = cat3d.fill.visible = false }
 function toTitle() {
   clearTimeout(revealTimer); mode = 'title'; paused = false; me = null; run = null; endAt = 0; stampD = null
   const r = createRunner({ id: 'demo', spawn: START })
@@ -665,7 +665,7 @@ function render(dt) {
     cat3d.update(R.cat, dt, c, camera)
     toys3d.update(R, dt)
     mom3d.lookNoz(c.x, c.y + 1, c.z); mom3d.update(R.mom, dt, camera, momFace(R))
-    slipper3d.update(R.mom.slip, dt)
+    slipper3d.update(R.mom.slip, dt, camera)
     if (R.mom.sucking && frameN % 2 === 0) { const N = R.mom.noz, a = Math.random() * 6.28, r0 = 10 + Math.random() * 18; fx.emit && fx.emit(N.x + Math.cos(a) * r0, N.y + (Math.random() - 0.5) * 10, N.z + Math.sin(a) * r0, { vx: -Math.cos(a) * r0 * 2.2, vy: 0, vz: -Math.sin(a) * r0 * 2.2, life: 0.45, size: 0.5, r: 0.85, g: 0.8, b: 0.7, a: 0.7 }) }
     // 落ちている物のきらめき
     const k = performance.now() / 300
@@ -719,7 +719,7 @@ function render(dt) {
 
 // ---------------------------------------------------------------- 検証用の窓口
 window.kob = {
-  get hero() { return model }, roomba3d, cat3d,
+  get hero() { return model }, roomba3d, cat3d, slipper3d,
   get mode() { return mode }, log, mom3d, momArt, momFace, toys3d, get me() { return me }, get run() { return run }, RUN, CH, world, camera, cam, renderer, GOAL, F, built, get stickObj() { return stick },
   start: s => startRun(s), toTitle, showResult, startReveal, get revealTexts() { return { ja: T.ja.reveal, en: T.en.reveal } }, setLang: l => { lang = l; applyLang() }, get lang() { return lang }, setPause,
   dbg: {

@@ -265,6 +265,19 @@ await t('猫とルンバの切り絵: 状態と向きで絵が替わり、3Dの�
   expect(r.leap === 'cat_front_leap' && r.nap === 'cat_nap' && r.box === 'cat_box' && r.swipe === 'cat_side_swipe' && r.ride === 'cat_loaf', JSON.stringify(r))
   expect(r.rom.join() === 'rom_front,rom_side_chase,rom_back_chase' && r.vis.paper && !r.vis.stub && r.vis.map, JSON.stringify(r)); return r.rom
 })
+await t('掃除機とスリッパの切り絵: 向きと高さで絵が替わり、仮の形が消えている', async () => {
+  const r = await p.evaluate(() => {
+    kob.start(6); kob.dbg.pause(true); const m = kob.run, M = m.mom, K = kob.mom3d, S = kob.slipper3d, out = {}; m.t = 60; m.lives = 99; M.in = true; M.z = 150
+    kob.dbg.teleport(92, 0.1, 262, 3.14); kob.dbg.render(30)
+    const nk = (x, z) => { M.noz.x = x; M.noz.y = 6; M.noz.z = z; kob.dbg.render(1); kob.dbg.render(1); return K.nozP.key }
+    out.nozFront = nk(92, 240); K.nozP.face(0, 0, 0, 1.57, { position: { x: 0, y: 0, z: 50 } }); out.nozSide = K.nozP.view; nk(92, 240)
+    out.can = K.canP.key; out.vis = { paper: K.canP.paper.visible && K.nozP.paper.visible && S.paper.visible, stub: K.canP.stub.visible || K.nozP.stub.visible || S.stub.visible, hoseLines: K.hose.children.length, share: K.hose.children[2].geometry.attributes.position.array.some(v => v !== 0) }
+    M.z = -50; const sl = T => { M.slip = { x: 92, y: 0, z: 230, T, r: 15 }; kob.dbg.render(1); return S.key }
+    out.slip = [sl(1.0), sl(0.5), sl(0)]; M.slip = null; kob.dbg.render(1); kob.dbg.pause(false); return out
+  })
+  expect(r.nozFront === 'noz_front' && r.nozSide === 'side' && /^can_/.test(r.can) && r.vis.paper && !r.vis.stub && r.vis.hoseLines === 3 && r.vis.share, JSON.stringify(r))
+  expect(r.slip[0] === 'slip_sole' && r.slip[2] === 'slip_side', JSON.stringify(r)); return r.slip
+})
 await t('切り絵: 実画面で顔が状況どおりに替わり、絵と寸法が合う', async () => {
   const r = await p.evaluate(() => {
     kob.start(2); kob.dbg.pause(true); const m = kob.run, M = m.mom; m.t = 60; m.lives = 99; M.in = true; M.z = 200; const out = {}
@@ -277,10 +290,9 @@ await t('切り絵: 実画面で顔が状況どおりに替わり、絵と寸法
 await t('切り絵: ホースは手のパイプの先につながり、吸い口まで届く', async () => {
   const r = await p.evaluate(() => {
     kob.start(2); kob.dbg.pause(true); const m = kob.run, M = m.mom; m.t = 60; m.lives = 99; M.in = true; M.z = 200; M.noz.x = 90; M.noz.y = 40; M.noz.z = 300; kob.dbg.teleport(60, 0.1, 340, 3.14); kob.dbg.render(30)
-    const h = kob.mom3d.hose, V = kob.camera.position.constructor, Mx = kob.camera.matrixWorld.constructor, mt = new Mx(), a = new V(), pts = []
-    for (let i = 0; i < h.count; i++) { h.getMatrixAt(i, mt); pts.push(a.setFromMatrixPosition(mt).clone()) }
+    const V = kob.camera.position.constructor, pts = kob.mom3d.path
     const P = kob.mom3d.paper, hand = new V(); const pose = { h: P.material.map }; const art = kob.mom3d
-    const end = pts[pts.length - 1], d = Math.hypot(end.x - M.noz.x, end.y - M.noz.y - 3, end.z - M.noz.z)
+    const end = pts[pts.length - 1], d = end.distanceTo(kob.mom3d.neck)
     const hp = kob.mom3d._h, dHand = Math.min(...pts.map(q => q.distanceTo(hp)))
     kob.dbg.pause(false); return { dNoz: +d.toFixed(2), dHand: +dHand.toFixed(2) }
   })
