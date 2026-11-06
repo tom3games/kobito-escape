@@ -9,7 +9,7 @@
 //   検証は Snd.played（鳴らした回数）と Snd.level()
 const Snd = {
   ctx: null, muted: false, files: {}, bufs: {}, last: {}, played: {}, loops: {},
-  raw: {}, bad: {}, busy: 0, MAX: 3, pre: [], prefetching: false,   // 読む順の管理（効果音 → 今のループ → 先読み）
+  raw: {}, bad: {}, busy: 0, busyBig: 0, MAX: 8, MAXBIG: 2, pre: [], prefetching: false,   // 読む順の管理（効果音 → 今のループ → 先読み）
   def(map) { for (const k in map) this.files[k] = [].concat(map[k]); if (this.ctx) this.load() },
   init() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return }
@@ -28,7 +28,7 @@ const Snd = {
     } catch (e) { this.ctx = null }
   },
   ir(sec) { const c = this.ctx, n = Math.floor(c.sampleRate * sec), b = c.createBuffer(2, n, c.sampleRate); for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3) } return b },
-  // 全部いっぺんに読まず、MAX 本ずつ順に読む。load() は順番待ちを進めるだけで、呼ぶ時に鳴らす物が変わっていれば順番も変わる
+  // 全部いっぺんに読まず、本数を決めて順に読む。load() は順番待ちを進めるだけで、呼ぶ時に鳴らす物が変わっていれば順番も変わる
   load() { if (!this._lt) this._lt = setTimeout(() => { this._lt = 0; this.pump() }, 0) },
   prefetch() { if (navigator.connection && navigator.connection.saveData) return; this.prefetching = true; this.load() },
   queue() {
@@ -41,13 +41,16 @@ const Snd = {
   },
   pump() {
     if (this.ctx) for (const u in this.raw) { const ab = this.raw[u]; delete this.raw[u]; this.decode(u, ab) }
+    const fx = new Set(Object.values(this.files).flat())   // 短い効果音は並べて、長いループは2本ずつ読む
     for (const u of this.queue()) {
+      const big = !fx.has(u)
       if (this.busy >= this.MAX) break
-      this.busy++; this.bufs[u] = 'loading'
+      if (big && this.busyBig >= this.MAXBIG) continue
+      this.busy++; if (big) this.busyBig++; this.bufs[u] = 'loading'
       fetch(u).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer() })
         .then(ab => { if (this.ctx) this.decode(u, ab); else this.raw[u] = ab })
         .catch(() => { delete this.bufs[u]; this.bad[u] = (this.bad[u] || 0) + 1 })
-        .then(() => { this.busy--; this.load() })
+        .then(() => { this.busy--; if (big) this.busyBig--; this.load() })
     }
   },
   decode(u, ab) { new Promise((ok, ng) => this.ctx.decodeAudioData(ab, ok, ng)).then(b => { this.bufs[u] = b }, () => { delete this.bufs[u]; this.bad[u] = 2 }) },

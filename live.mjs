@@ -22,7 +22,7 @@ for (const [name, bt, opts] of [['chromium', chromium, {}], ['webkit', webkit, {
   await p.waitForFunction(() => kob.mode === 'reveal', null, { timeout: 8000, polling: 30 })   // 結果の前のおかんの大写し
   const reveal = await p.evaluate(() => window.__revealLast)
   await p.waitForFunction(() => window.__stamped, null, { timeout: 8000 })
-  const res = await p.evaluate(() => ({ mode: kob.mode, result: window.__lastResult, stamped: !!window.__stamped, mute: window.__muteOk(), momArt: kob.momArt.loaded, faces: Object.keys(kob.momArt.faces).length, momKey: kob.mom3d.key, toyTokens: document.querySelectorAll('#toyTokens .ty').length, v: document.querySelector('script[type=module]').src.split('?')[1] }))
+  const res = await p.evaluate(() => ({ mode: kob.mode, result: window.__lastResult, stamped: !!window.__stamped, mute: window.__muteOk(), momArt: kob.momArt.loaded, faces: Object.keys(kob.momArt.faces).length, momKey: kob.mom3d.key, toyTokens: document.querySelectorAll('#toyTokens .ty').length, v: document.querySelector('link[rel=modulepreload]').href.split('?')[1] }))
   out.push(`${name}: flow=${JSON.stringify(flow)} reveal=${JSON.stringify(reveal)} result=${JSON.stringify(res)}`)
   await p.screenshot({ path: `shots/live-${name}.png` })
   const og = await p.evaluate(async () => { const r = await fetch(document.querySelector('meta[property="og:image"]').content); return r.status + ' ' + r.headers.get('content-type') })
