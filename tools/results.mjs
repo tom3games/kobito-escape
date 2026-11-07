@@ -1,4 +1,5 @@
 // 結果の紙だけ撮る。node tools/results.mjs
+import '../mute-auto.mjs'  // テスト中は絶対に音を出さない（playwright を無音に差し替え）
 import { chromium } from 'playwright'
 import { spawn } from 'node:child_process'
 import { MUTE_LAUNCH, muteContext } from '../mute.mjs'

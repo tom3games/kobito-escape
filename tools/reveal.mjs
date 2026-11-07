@@ -1,4 +1,5 @@
 // 結果の前のおかんの大写しの確認。単体: node tools/reveal.mjs（無音。verify.mjs からも呼ぶ）
+import '../mute-auto.mjs'  // テスト中は絶対に音を出さない（playwright を無音に差し替え）
 import { chromium, webkit } from 'playwright'
 import { spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'

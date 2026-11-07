@@ -1,4 +1,5 @@
 // 台本で撮る。node tools/shot.mjs <名前> [幅x高さ]
+import '../mute-auto.mjs'  // テスト中は絶対に音を出さない（playwright を無音に差し替え）
 import { chromium, webkit } from 'playwright'
 import { spawn } from 'node:child_process'
 import { MUTE_LAUNCH, muteContext } from '../mute.mjs'
