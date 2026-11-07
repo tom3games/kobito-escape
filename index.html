@@ -146,5 +146,6 @@
   Promise.race([f,new Promise(function(r){setTimeout(r,1500)})]).then(function(){return import('./dist/game.js?v=8')}).catch(function(e){console.error(e);throw e});
 })();
 </script>
+<script src="support.js?v=1" data-ja="米粒" data-en="a grain of rice"></script>
 </body>
 </html>
