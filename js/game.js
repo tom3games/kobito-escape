@@ -33,7 +33,7 @@ const T = {
       ['toy', 'ネズミに<b>走って当たる</b>と猫が追う。3回まで'],
       ['exit', '絆創膏3枚で終わり。<b>冷蔵庫の上の非常口</b>まで']
     ],
-    credit: '音: Work With Sounds / Werstas, Gravity Sound (CC BY 4.0) ほか CC0。人物: KayKit, Kenney (CC0)。おかんは画像生成。詳しくは CREDITS.md',
+    credit: '音: Work With Sounds / Werstas, Gravity Sound (CC BY 4.0) ほか CC0。人物: KayKit, Kenney (CC0)。詳しくは CREDITS.md',
     way: { sofa: 'ソファの上へ', shelf: '本棚の上へ', curtain: 'カーテンの上へ', exit: '冷蔵庫の上へ' },
     dist: d => d >= 100 ? `${Math.floor(d / 100)}m${String(Math.round(d % 100)).padStart(2, '0')}cm` : `${Math.round(d)}cm`, up: d => `上へ${d}cm`, down: d => `下へ${d}cm`,
     paused: 'ちょっと休憩', resume: '戻る', quit: 'やめる',
