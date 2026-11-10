@@ -1,8 +1,0 @@
-ART STYLE (strict): Japanese gag-manga illustration for a silly comedy game, printed and cut out like a paper puppet. Thick, confident, slightly wobbly hand-inked black outlines. Flat cel colors with at most one simple shadow tone. Chunky, simplified, rubbery shapes. Warm and funny, never scary or gross. No realism, no photo, no 3D render, no gradients, no airbrush, no texture noise, no blood, nothing sexual. An original invented character, not based on any existing franchise, brand or real person.
-
-SUBJECT: one single fictional old Japanese household canister vacuum cleaner body, drawn in exactly the same gag-manga paper-cutout style as the attached reference images (same line weight, same flat colors). Round, fat, glossy red rounded body like a 1970s appliance, a black round lid on top, a carrying handle, two big black wheels with gray hubs, slightly beat up with a small sticker-free dent. No hose attached, only a short round hose socket. No brand, no logos, no letters, no face.
-
-BACKGROUND: perfectly flat pure chroma green #00FF00 across the whole image, no floor, no shadow, no text, no speech bubbles, no lettering, no extra objects. Do not use any green on the object. Whole object inside the frame with margin on all sides. Draw EXACTLY THREE separate views of this same object, side by side in three equal columns, none overlapping, wide empty gaps between them, same scale:
-1. LEFT: "front": the hose socket faces the viewer, wheels on both sides.
-2. CENTER: "side": pure side view, front pointing to the image's RIGHT, one big wheel visible.
-3. RIGHT: "back": seen from behind, handle and exhaust vent lines visible, wheels on both sides.

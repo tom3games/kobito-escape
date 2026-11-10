@@ -1,8 +1,0 @@
-ART STYLE (strict): Japanese gag-manga illustration for a silly comedy game, printed and cut out like a paper puppet. Thick, confident, slightly wobbly hand-inked black outlines. Flat cel colors with at most one simple shadow tone. Chunky, simplified, rubbery shapes. Warm and funny, never scary or gross. No realism, no photo, no 3D render, no gradients, no airbrush, no texture noise, no blood, nothing sexual. An original invented character, not based on any existing franchise, brand or real person.
-
-SUBJECT: one single fictional vacuum cleaner floor nozzle, drawn in exactly the same gag-manga paper-cutout style as the attached reference images (same line weight, same flat colors). A wide flat dark gray head with a red bristle stripe and a short silver metal neck rising from the back center. Comic and hungry but not scary. No eyes, no brand, no logos, no letters.
-
-BACKGROUND: perfectly flat pure chroma green #00FF00 across the whole image, no floor, no shadow, no text, no speech bubbles, no lettering, no extra objects. Do not use any green on the object. Whole object inside the frame with margin on all sides. Draw EXACTLY THREE separate views of this same object, side by side in three equal columns, none overlapping, wide empty gaps between them, same scale:
-1. LEFT: "front": the head faces the viewer and is very wide. Its long open mouth fills the head as a black slot with rows of stubby bristles along the edges like hungry teeth, the silver neck rising behind the middle.
-2. CENTER: "side": pure side view, the mouth end pointing to the image's RIGHT and gaping open, the silver neck going up and to the LEFT.
-3. RIGHT: "back": seen from behind, plain gray back of the head, the silver neck rising from the center toward the viewer, no mouth visible.

@@ -1,9 +1,0 @@
-ART STYLE (strict): Japanese gag-manga illustration for a silly comedy game, printed and cut out like a paper puppet. Thick, confident, slightly wobbly hand-inked black outlines. Flat cel colors with at most one simple shadow tone. Huge, rubbery, hilariously exaggerated cartoon face, few lines, no wrinkles. Chunky simplified body, no anatomical detail. Warm and funny, never scary or gross. No realism, no photo, no 3D render, no gradients, no airbrush, no texture noise, no blood, nothing sexual. An original invented character, not based on any existing franchise, brand or real person.
-
-SUBJECT: a character sheet of one single fictional fat Japanese orange tabby house cat, drawn in exactly the same gag-manga paper-cutout style as the attached reference images (same line weight, same flat colors). Orange fur with dark rust-brown tiger stripes, cream muzzle, chest and paws, big round yellow eyes with black slit pupils, pink nose, pink inside the ears, long striped tail, a smug and shamelessly lazy personality. No collar, no text, no logos.
-
-BACKGROUND: perfectly flat pure chroma green #00FF00 across the whole image, no floor, no shadow, no text, no speech bubbles, no lettering, no extra objects. Do not use any green on the subject. Whole subject inside the frame with margin on all sides. Draw EXACTLY THREE separate poses of this same subject, side by side in three equal columns, none overlapping, wide empty gaps between them, same scale:
-All three in pure side view, facing the image's RIGHT.
-1. LEFT: "side rest": sitting upright, tail curled, half-closed bored eyes.
-2. CENTER: "side crouch": low hunting crouch, chest on the floor, rear end raised, tail up, huge round eyes locked forward, very serious.
-3. RIGHT: "side leap": flying pounce in mid-air, body stretched long, front paws reaching forward with claws out, back legs trailing, mouth open.
