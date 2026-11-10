@@ -1,5 +1,5 @@
 // 人物の見た目
-// 自分: 画像生成の切り絵（img/hero_atlas.webp）。カメラの方を向く紙で、見る向きと動きで絵を替える。当たり判定は shared/ のままで絵には関係しない
+// 自分: 切り絵（img/hero_atlas.webp）。カメラの方を向く紙で、見る向きと動きで絵を替える。当たり判定は shared/ のままで絵には関係しない
 // 先住のおじさん: Kenney Mini Characters（CC0）。最初の画面に要らないので裏で読む
 import * as THREE from 'three'
 import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js?v=3'

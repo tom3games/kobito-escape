@@ -113,7 +113,7 @@ export class Cat3d extends ChaserPaper {
 }
 
 // ---------------------------------------------------------------- おかんと掃除機
-// おかん本体は画像生成の切り絵（img/mom_*.webp）。カメラの方へ縦軸だけ回す板。掃除機の本体と吸い口は別の切り絵
+// おかん本体は切り絵（img/mom_*.webp）。カメラの方へ縦軸だけ回す板。掃除機の本体と吸い口は別の切り絵
 // 当たり判定は shared/chase.js の吸い口だけを見るので、絵を替えても届く範囲は変わらない
 const V = new URL(import.meta.url).search
 const momTex = {}
