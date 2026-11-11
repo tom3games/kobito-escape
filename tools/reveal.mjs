@@ -21,7 +21,8 @@ export async function revealTests({ browser, bName, URL0, ROOT, t, opts = {} }) 
   const open = async extra => {
     const ctx = await browser.newContext({ locale: 'ja-JP', viewport: { width: 390, height: 844 }, ...opts, ...extra }); await muteContext(ctx)
     const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') p.errs.push(m.text()) })
-    await p.goto(URL0); await p.waitForFunction(() => window.__kobReady && Object.keys(kob.momArt.big).length === 4 && document.getElementById('boot').classList.contains('hidden'), null, { timeout: 30000 }); return p
+    // 大写しの絵は準備完了の後に裏で読む。負荷で30秒を超えることがあるので長めに条件待ち
+    await p.goto(URL0, { timeout: 120000 }); await p.waitForFunction(() => window.__kobReady && Object.keys(kob.momArt.big).length === 4 && document.getElementById('boot').classList.contains('hidden'), null, { timeout: 120000 }); return p
   }
   for (const [w, h, name] of SIZES) {
     const p = await open({ viewport: { width: w, height: h } })
@@ -37,7 +38,7 @@ export async function revealTests({ browser, bName, URL0, ROOT, t, opts = {} }) 
       const after = await p.evaluate(() => ({ shown: !document.getElementById('reveal').classList.contains('hidden'), paperW: document.getElementById('paper').getBoundingClientRect().width, again: !!document.getElementById('btnAgain').getBoundingClientRect().width, last: window.__lastResult, stamped0: window.__stamped }))
       expect(!after.shown && after.paperW > 180 && after.again && !after.stamped0, JSON.stringify(after))
       expect(by === 'win' ? after.last.won : after.last.by === by, JSON.stringify(after.last))
-      await p.waitForFunction(() => window.__stamped, null, { timeout: 8000 })
+      await p.waitForFunction(() => window.__stamped, null, { timeout: 30000 })
       return { line: r.line, 秒: dur / 1000, 枠: r.frameW }
     })
     await t(`${bName} ${name} 大写し: 全部の台詞（日英）が12字以内で画面に収まる`, async () => {
@@ -52,7 +53,7 @@ export async function revealTests({ browser, bName, URL0, ROOT, t, opts = {} }) 
   await t(`${bName} 大写し: 実際に終わった時（何もしない負け・ゴール）にも出る`, async () => {
     const seen = []
     for (const setup of [() => { kob.start(5); kob.dbg.pause(true); while (!kob.run.over && kob.run.t < 120) kob.dbg.step(30); kob.dbg.pause(false) }, () => { kob.start(9); kob.dbg.teleport(kob.GOAL.x, kob.GOAL.y + 0.2, kob.GOAL.z) }]) {
-      await p.evaluate(setup); await p.waitForFunction(() => kob.mode === 'reveal', null, { timeout: 12000, polling: 30 }); seen.push(await p.evaluate(() => window.__revealLast.by)); await p.waitForFunction(() => kob.mode === 'result', null, { timeout: 4000 })
+      await p.evaluate(setup); await p.waitForFunction(() => kob.mode === 'reveal', null, { timeout: 45000, polling: 30 }); seen.push(await p.evaluate(() => window.__revealLast.by)); await p.waitForFunction(() => kob.mode === 'result', null, { timeout: 60000 })
     }
     expect(seen[0] !== 'win' && seen[1] === 'win', JSON.stringify(seen)); return seen
   })
@@ -64,8 +65,10 @@ export async function revealTests({ browser, bName, URL0, ROOT, t, opts = {} }) 
     await p.touchscreen.tap(195, 300)   // 実際のタッチ。click だと操作待ちの間に時間切れになる
     const r = await p.evaluate(() => ({ mode: kob.mode, ms: Math.round(performance.now() - window.__revT0), stamped: window.__stamped, at: performance.now() }))
     expect(r.mode === 'result' && r.ms < 1000 && !r.stamped, JSON.stringify(r))
-    const stampMs = await p.evaluate(() => new Promise(ok => { const t0 = performance.now(), f = () => window.__stamped ? ok(Math.round(performance.now() - t0)) : setTimeout(f, 10); f() }))
-    expect(stampMs > 500 && stampMs < 1500, 'stamp ' + stampMs)
+    // ハンコはコマの経過（1コマ最大0.1秒）で押す作り。負荷でコマが遅いと実時間は延びるので、ゲームと同じ数え方の経過で見る
+    const st = await p.evaluate(() => new Promise(ok => { let g = 0, last = performance.now(); const t0 = last, f = () => { const now = performance.now(); g += Math.min(0.1, (now - last) / 1000); last = now; if (window.__stamped) ok({ ms: Math.round(now - t0), game: +g.toFixed(2) }); else requestAnimationFrame(f) }; requestAnimationFrame(f) }))
+    const stampMs = st.ms
+    expect(st.game > 0.5 && st.game < 1.5, 'stamp ' + JSON.stringify(st))
     await p.waitForTimeout(1500); const stay = await p.evaluate(() => kob.mode); expect(stay === 'result', stay)   // 飛ばした後で遅れて紙を出し直さない
     return { 飛ばした: r.ms, ハンコ: stampMs }
   })
@@ -80,7 +83,7 @@ export async function revealTests({ browser, bName, URL0, ROOT, t, opts = {} }) 
     const r = await p.evaluate(() => ({ m: kob.mode, rev: document.getElementById('reveal').classList.contains('hidden'), res: document.getElementById('result').classList.contains('hidden') })); expect(r.m === 'title' && r.rev && r.res, JSON.stringify(r))
   })
   await t(`${bName} 大写しの後も 画像保存 と Xでポスト が動く`, async () => {
-    await p.evaluate(begin, ['slipper', 14]); await p.evaluate(waitResult); await p.waitForFunction(() => window.__stamped, null, { timeout: 8000 })
+    await p.evaluate(begin, ['slipper', 14]); await p.evaluate(waitResult); await p.waitForFunction(() => window.__stamped, null, { timeout: 30000 })
     const r = await p.evaluate(() => new Promise(ok => { const c = document.getElementById('paper'); const orig = HTMLAnchorElement.prototype.click; let dl = null; HTMLAnchorElement.prototype.click = function () { dl = this.download }; document.getElementById('btnSave').click(); c.toBlob(b => setTimeout(() => { HTMLAnchorElement.prototype.click = orig; ok({ size: b.size, dl, post: document.getElementById('btnPost').href }) }, 200)) }))
     expect(r.size > 20000 && r.dl === 'kobito-escape.png' && /x\.com\/intent\/post/.test(r.post) && /%E5%AE%B3%E8%99%AB/.test(r.post), JSON.stringify(r).slice(0, 300)); return r.size
   })
@@ -96,9 +99,9 @@ export async function revealTests({ browser, bName, URL0, ROOT, t, opts = {} }) 
   await q.context().close()
   const ctx = await browser.newContext({ locale: 'ja-JP', viewport: { width: 390, height: 844 }, ...opts }); await muteContext(ctx); await ctx.route('**/img/*.webp*', r => r.abort())
   const n = await ctx.newPage(); const errs = []; n.on('pageerror', e => errs.push(e.message))
-  await n.goto(URL0); await n.waitForFunction(() => window.__kobReady, null, { timeout: 25000 })
+  await n.goto(URL0, { timeout: 120000 }); await n.waitForFunction(() => window.__kobReady, null, { timeout: 120000 })
   await t(`${bName} 大写し: 絵が読めない時は飛ばして紙を出す`, async () => {
-    await n.waitForFunction(() => kob.momArt.done, null, { timeout: 15000 })   // 読み込みを諦めるまでは待つ仕様
+    await n.waitForFunction(() => kob.momArt.done, null, { timeout: 60000 })   // 読み込みを諦めるまでは待つ仕様
     await n.evaluate(begin, ['vac', 16]); const r = await n.evaluate(() => ({ m: kob.mode, rev: document.getElementById('reveal').classList.contains('hidden') })); expect(r.m === 'result' && r.rev && !errs.length, JSON.stringify(r) + errs.join('|'))
   })
   await ctx.close()

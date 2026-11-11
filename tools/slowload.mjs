@@ -14,7 +14,7 @@ export async function slowTests({ browser, bName, URL0, t, opts }) {
   }
   await t(`${bName}: 開く時のファイルが少なく外部へ行かない`, async () => {
     const p = await open()
-    await p.goto(URL0); await p.waitForFunction(() => window.__kobReady, null, { timeout: 30000 })
+    await p.goto(URL0, { timeout: 120000 }); await p.waitForFunction(() => window.__kobReady, null, { timeout: 120000 })
     // blob: は 3D モデルの中の絵で通信しない。おかんの絵は準備完了の後に読み始めるので数えない
     const real = p.reqs.filter(u => !u.startsWith('blob:') && !/\/img\//.test(u))
     const n = real.length, outside = real.filter(u => !u.startsWith(URL0)), mod = real.filter(u => /\/(js|shared|vendor)\//.test(u))
@@ -24,12 +24,12 @@ export async function slowTests({ browser, bName, URL0, t, opts }) {
   await t(`${bName}: おかんと音が届く前に始めても遊べて、掃除機が見えないことがない`, async () => {
     let free; const until = new Promise(r => { free = r })
     const p = await open({ pat: u => /\/(img\/|snd\/)/.test(u.pathname) && !/hero_atlas/.test(u.pathname), until })
-    await p.goto(URL0); await p.waitForFunction(() => window.__kobReady, null, { timeout: 30000 })
+    await p.goto(URL0, { timeout: 120000 }); await p.waitForFunction(() => window.__kobReady, null, { timeout: 120000 })
     const boot = await p.evaluate(() => ({ done: kob.momArt.done, hidden: document.getElementById('boot').classList.contains('out') }))
     await p.tap('#btnStart'); await p.waitForTimeout(200)
     const r = await p.evaluate(() => { kob.dbg.pause(true); kob.run.t = 20; kob.run.lives = 99; kob.dbg.step(3); return { mode: kob.mode, mom: kob.mom3d.g.visible, stub: kob.mom3d.stub.visible, paper: kob.mom3d.paper.visible, snd: Snd.played.click } })
     free()
-    await p.waitForFunction(() => kob.momArt.done, null, { timeout: 15000 })
+    await p.waitForFunction(() => kob.momArt.done, null, { timeout: 60000 })
     const after = await p.evaluate(() => { kob.dbg.step(3); return { stub: kob.mom3d.stub.visible, paper: kob.mom3d.paper.visible } })
     const muteOk = await p.evaluate(() => window.__muteOk ? window.__muteOk() : true)
     const errs = p.errs.slice(); await p.ctxx.close()
@@ -42,7 +42,7 @@ export async function slowTests({ browser, bName, URL0, t, opts }) {
   await t(`${bName}: 顔が遅れても大写しを待って出す`, async () => {
     let free; const until = new Promise(r => { free = r })
     const p = await open({ pat: u => /\/img\//.test(u.pathname) && !/hero_atlas/.test(u.pathname), until })
-    await p.goto(URL0); await p.waitForFunction(() => window.__kobReady, null, { timeout: 30000 })
+    await p.goto(URL0, { timeout: 120000 }); await p.waitForFunction(() => window.__kobReady, null, { timeout: 120000 })
     await p.tap('#btnStart'); await p.waitForTimeout(150)
     await p.evaluate(() => { window.__revealLast = null; const m = kob.run; m.over = true; m.by = 'vac'; kob.startReveal() })
     await p.waitForTimeout(600)
@@ -56,7 +56,7 @@ export async function slowTests({ browser, bName, URL0, t, opts }) {
   })
   await t(`${bName}: 音は効果音から順に読み、題の BGM を無駄に読まない`, async () => {
     const p = await open()
-    await p.goto(URL0); await p.waitForFunction(() => window.__kobReady, null, { timeout: 30000 })
+    await p.goto(URL0, { timeout: 120000 }); await p.waitForFunction(() => window.__kobReady, null, { timeout: 120000 })
     await p.tap('#btnStart')
     await p.waitForFunction(() => Snd.bufs['snd/vacuum_loop.wav'] instanceof AudioBuffer, null, { timeout: 20000 })
     const snd = p.reqs.filter(u => /\/snd\//.test(u)).map(u => u.split('/snd/')[1]), title = snd.includes('bgm_title.mp3')

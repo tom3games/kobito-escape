@@ -15,7 +15,8 @@ mkdirSync(ROOT + '/shots', { recursive: true })
 execSync('node tools/build.mjs', { cwd: ROOT, stdio: 'inherit' })   // js/ を直した分を公開物に入れる
 const PORT = Number(process.env.VPORT || 5776)
 const server = spawn(process.execPath, ['server.mjs'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT) } })
-await new Promise(r => setTimeout(r, 400))
+process.on('exit', () => server.kill())   // 途中で落ちても確認用サーバーを残さない（次の回がポートを握られる）
+for (let i = 0; i < 100; i++) { try { await fetch(`http://localhost:${PORT}/`); break } catch (e) { await new Promise(r => setTimeout(r, 100)) } }
 const URL0 = `http://localhost:${PORT}/`
 let pass = 0, fail = 0
 const results = []
@@ -33,7 +34,7 @@ async function open(browser, opts = {}) {
   p.on('pageerror', e => p.errs.push('pageerror ' + e.message))
   p.on('console', m => { if (m.type() === 'error') p.errs.push('console ' + m.text()) })
   p.on('requestfailed', r => { if (!/fonts\.(googleapis|gstatic)/.test(r.url())) p.errs.push('reqfail ' + r.url()) })
-  await p.goto(URL0); await p.waitForFunction(() => window.__kobReady && kob.momArt.done, null, { timeout: 30000 })
+  await p.goto(URL0, { timeout: 120000 }); await p.waitForFunction(() => window.__kobReady && kob.momArt.done, null, { timeout: 120000 })
   return p
 }
 const overflow = p => p.evaluate(() => {
@@ -181,11 +182,11 @@ await t('もう一度押すと離れる', async () => {
 })
 await t('スティックで走る（指で倒した向き）', async () => {
   await p.evaluate(() => { kob.start(77); kob.run.lives = 99; kob.run.roombas[0].wakeAt = 999 }); await p.waitForTimeout(150)
-  const a0 = await p.evaluate(() => ({ x: kob.me.x, z: kob.me.z }))
+  const a0 = await p.evaluate(() => { kob.dbg.pause(true); return { x: kob.me.x, z: kob.me.z } })
   const c = await p.evaluate(() => { const r = document.getElementById('stick').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, h: r.height } })
   await p.evaluate(({ x, y }) => { const el = document.getElementById('stick'); el.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 5, clientX: x, clientY: y, bubbles: true })); window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 5, clientX: x, clientY: y - 50, bubbles: true })) }, c)
-  await p.waitForTimeout(700)
-  const a1 = await p.evaluate(() => ({ x: kob.me.x, z: kob.me.z }))
+  // 実時間 0.7 秒待つと負荷でコマが遅れて進みが足りない。時間を止めて 0.7 秒ぶん（42コマ）進める
+  const a1 = await p.evaluate(() => { kob.dbg.pause(true); kob.dbg.step(42); const r = { x: kob.me.x, z: kob.me.z }; kob.dbg.pause(false); return r })
   await p.evaluate(() => window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 5, bubbles: true })))
   expect(a1.z - a0.z > 2, JSON.stringify([a0, a1])); return { 進んだ: +(a1.z - a0.z).toFixed(1) }
 })
@@ -316,7 +317,7 @@ await t('おった！: カットインが出て、文字は1つ・自動で引�
   await p.waitForTimeout(1900); const hid = await p.evaluate(() => document.getElementById('momCut').classList.contains('hidden')); expect(hid, 'still shown'); return r
 })
 // ---- 結果（何もしない通しの様式・勝ち）
-const finish = async (q, setup, arg) => { await q.evaluate(setup, arg); await q.waitForFunction(() => window.kob.mode === 'result', null, { timeout: 12000 }); await q.waitForFunction(() => window.__stamped, null, { timeout: 8000 }); return q.evaluate(() => window.__lastResult) }
+const finish = async (q, setup, arg) => { await q.evaluate(setup, arg); await q.waitForFunction(() => window.kob.mode === 'result', null, { timeout: 45000 }); await q.waitForFunction(() => window.__stamped, null, { timeout: 30000 }); return q.evaluate(() => window.__lastResult) }
 await t('何もしない通し（実画面）: ハンコは最低の「回収」', async () => {
   const r = await finish(p, () => { window.__stamped = false; kob.start(5); kob.dbg.pause(true); while (!kob.run.over && kob.run.t < 120) kob.dbg.step(30); kob.dbg.pause(false) })
   expect(!r.won && r.rank === 0 && r.stamp === '回収', JSON.stringify(r)); await p.screenshot({ path: ROOT + '/shots/result-idle.png' }); return r
@@ -379,13 +380,13 @@ await t('レアの出方（1000 seed で 5〜40% の間）', async () => {
 await t('素材（人物）が読めなくても遊べる', async () => {
   const ctx = await browser.newContext({ locale: 'ja-JP', viewport: { width: 390, height: 844 } }); await muteContext(ctx); await ctx.route('**/*.glb', r => r.abort()); await ctx.route('**/hero_atlas.webp*', r => r.abort())
   const q = await ctx.newPage(); const errs = []; q.on('pageerror', e => errs.push(e.message))
-  await q.goto(URL0); await q.waitForFunction(() => window.__kobReady, null, { timeout: 20000 })
+  await q.goto(URL0); await q.waitForFunction(() => window.__kobReady, null, { timeout: 60000 })
   await q.click('#btnStart'); await q.waitForTimeout(300); const ok = await q.evaluate(() => kob.mode === 'play'); expect(ok && !errs.length, errs.join('|')); await ctx.close()
 })
 await t('切り絵が読めなくても遊べる', async () => {
   const ctx = await browser.newContext({ locale: 'ja-JP', viewport: { width: 390, height: 844 } }); await muteContext(ctx); await ctx.route('**/img/*.webp*', r => r.abort())
   const q = await ctx.newPage(); const errs = []; q.on('pageerror', e => errs.push(e.message))
-  await q.goto(URL0); await q.waitForFunction(() => window.__kobReady, null, { timeout: 20000 })
+  await q.goto(URL0); await q.waitForFunction(() => window.__kobReady, null, { timeout: 60000 })
   await q.click('#btnStart'); await q.waitForTimeout(200)
   const r = await q.evaluate(() => { kob.dbg.pause(true); kob.run.t = 20; kob.run.lives = 99; kob.dbg.step(3); return { mode: kob.mode, stub: kob.mom3d.stub.visible, failed: kob.momArt.failed } }); expect(r.mode === 'play' && r.stub && r.failed === 6 && !errs.length, JSON.stringify(r) + errs.join('|')); await ctx.close(); return r
 })
@@ -407,17 +408,17 @@ for (const [bName, launch, opts] of [['chromium', () => browser, touch], ['webki
     await t(`${bName} ${name}: 描けている`, async () => { const v = await glVar(q); expect(v > 200, v); return v })
     await q.screenshot({ path: `${ROOT}/shots/${bName}-${name}-play.png` })
     await q.evaluate(() => { kob.start(2); kob.dbg.pause(true); const m = kob.run; m.t = 60; m.lives = 99; m.mom.in = true; m.mom.z = 205; m.mom.spotAt = -99; m.mom.wasAim = false; m.mom.noz.x = 60; m.mom.noz.y = 8; m.mom.noz.z = 280; kob.dbg.teleport(26, 0.1, 330, 3.14); kob.cam.pitch = -0.33; kob.dbg.step(2); kob.dbg.render(20) })
-    await q.waitForFunction(() => { const c = document.getElementById('momCut'); return !c.classList.contains('hidden') && c.getBoundingClientRect().right <= innerWidth + 2 }, null, { timeout: 8000 }).catch(() => {})   // ソフト描画の Chromium はコマが遅く、滑り込みの途中で測ってしまう
+    await q.waitForFunction(() => { const c = document.getElementById('momCut'); return !c.classList.contains('hidden') && c.getBoundingClientRect().right <= innerWidth + 2 }, null, { timeout: 30000 }).catch(() => {})   // ソフト描画の Chromium はコマが遅く、滑り込みの途中で測ってしまう
     await t(`${bName} ${name}: 切り絵のおかんとカットインが出て、はみ出さない`, async () => { const r = await q.evaluate(() => { const c = document.getElementById('momCut'), b = c.getBoundingClientRect(), s = document.getElementById('btnWire').getBoundingClientRect(), st = document.getElementById('stick').getBoundingClientRect(); return { loaded: kob.momArt.loaded, key: kob.mom3d.key, shown: !c.classList.contains('hidden'), right: b.right, W: innerWidth, bottom: b.bottom, btn: Math.min(s.top, st.top), toys: document.getElementById('toys').getBoundingClientRect().right, sign: document.getElementById('sign').getBoundingClientRect().top, toyB: document.getElementById('toyBar').getBoundingClientRect().bottom, timer: document.getElementById('btnPause').getBoundingClientRect().left } }); expect(r.loaded === 6 && r.key === 'spot' && r.shown && r.bottom < r.btn && r.right <= r.W + 2 && r.toys < r.timer, JSON.stringify(r)); return { 顔: r.key, 下端: Math.round(r.bottom) } })
     await q.screenshot({ path: `${ROOT}/shots/${bName}-${name}-mom.png` })
     await q.evaluate(() => { kob.dbg.pause(false); kob.start(31) }); await q.waitForTimeout(200)
     await q.tap('#btnPause'); views.pause = await fit(q); await q.screenshot({ path: `${ROOT}/shots/${bName}-${name}-pause.png` }); await q.tap('#btnResume')
     await q.evaluate(() => { window.__stamped = false; kob.dbg.pause(true); kob.run.lives = 1; const b = kob.run.roombas[0]; b.on = true; b.x = kob.me.x; b.z = kob.me.z + 3; kob.dbg.step(2); kob.dbg.pause(false) })
-    await q.waitForFunction(() => window.kob.mode === 'result' && window.__stamped, null, { timeout: 15000 })
+    await q.waitForFunction(() => window.kob.mode === 'result' && window.__stamped, null, { timeout: 60000 })
     await t(`${bName} ${name}: 紙が見える大きさで出ている`, async () => { const r = await q.evaluate(() => { const b = document.getElementById('paper').getBoundingClientRect(); return { w: b.width, h: b.height } }); expect(r.w > 180 && r.h > 260, JSON.stringify(r)); return r })
     views.lose = await fit(q); views.loseO = await overflow(q); await q.screenshot({ path: `${ROOT}/shots/${bName}-${name}-lose.png` })
     await q.evaluate(() => { window.__stamped = false; kob.start(9); kob.dbg.teleport(kob.GOAL.x, kob.GOAL.y + 0.2, kob.GOAL.z) })
-    await q.waitForFunction(() => window.kob.mode === 'result' && window.__stamped, null, { timeout: 15000 })
+    await q.waitForFunction(() => window.kob.mode === 'result' && window.__stamped, null, { timeout: 60000 })
     views.win = await fit(q); views.winO = await overflow(q); await q.screenshot({ path: `${ROOT}/shots/${bName}-${name}-win.png` })
     for (const [v, r] of Object.entries(views)) {
       if (v.endsWith('O')) await t(`${bName} ${name} ${v}: 横にはみ出さない`, async () => { expect(r.sw <= r.W && !r.bad.length, JSON.stringify(r)) })
@@ -434,7 +435,7 @@ for (const [bName, launch, opts] of [['chromium', () => browser, touch], ['webki
     await (async (ap, other, ready, tapXY) => {
       const e0 = ap.errs.length
       await t('WebKit: 裏に回ると BGM と環境音が止まり suspend。戻っても触るまで鳴らない（bfcache の pageshow でも）', async () => {
-        await ap.waitForFunction(() => Snd.playing().length >= 1, null, { timeout: 15000 })
+        await ap.waitForFunction(() => Snd.playing().length >= 1, null, { timeout: 60000 })
         const r = await ap.evaluate(async () => {
           const c = Snd.ctx; let sus = 0; const os = c.suspend; c.suspend = function () { sus++; return os.call(this) }
           const before = Snd.playing().length, w0 = Snd.life.wake
