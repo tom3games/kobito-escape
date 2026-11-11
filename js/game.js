@@ -318,10 +318,9 @@ function startRun(seed = Math.floor(Math.random() * 1e6)) {
   say(t('hint1'), 3)
 }
 function setPause(p) { if (mode !== 'play') return; paused = p; $('pause').classList.toggle('hidden', !p) }
-// 別のアプリへ行ったら止める。音も止めて、戻ったら鳴らす
+// 別のアプリへ行ったら止める。音は sfx.js が止め、戻っても触るまで鳴らさない
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { if (mode === 'play' && run && !run.over) setPause(true); if (Snd.ctx) Snd.ctx.suspend() }
-  else if (Snd.ctx && Snd.ctx.state === 'suspended' && !window.__muteOk) Snd.ctx.resume()
+  if (document.hidden && mode === 'play' && run && !run.over) setPause(true)
 })
 let plastersN = -1
 function drawPlasters(n) {

@@ -20,7 +20,7 @@
 <link rel="preload" href="fonts/biz700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/klee600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css?v=8">
-<link rel="modulepreload" href="dist/game.js?v=9">
+<link rel="modulepreload" href="dist/game.js?v=10">
 </head>
 <body>
 <div id="view"></div>
@@ -139,13 +139,13 @@
   setTimeout(show,45000);
 })();
 </script>
-<script src="sfx.js?v=8"></script>
+<script src="sfx.js?v=9"></script>
 <script>
 // フォント2つを待ってから本体を動かす（家の張り紙に字を描くため）。遅い回線でも1.5秒で先へ進む
 (function(){
   var n=0,tick=function(){n++;window.__bootSet(n*0.1)};
   var f=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('700 16px "BIZ UDPGothic"').then(tick,tick),document.fonts.load('600 16px "Klee One"').then(tick,tick)]):Promise.resolve();
-  Promise.race([f,new Promise(function(r){setTimeout(r,1500)})]).then(function(){return import('./dist/game.js?v=9')}).catch(function(e){console.error(e);throw e});
+  Promise.race([f,new Promise(function(r){setTimeout(r,1500)})]).then(function(){return import('./dist/game.js?v=10')}).catch(function(e){console.error(e);throw e});
 })();
 </script>
 <script src="support.js?v=4" data-ja="米粒" data-en="a grain of rice"></script>
