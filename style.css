@@ -6,7 +6,7 @@
 html{height:100%;background:#2b2319;touch-action:manipulation}
 body{margin:0;height:100svh;overflow:hidden;position:relative;color:#201a12;font-family:"BIZ UDPGothic",system-ui,sans-serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;background:transparent}
 button,a{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:none}
-:root{--green:#00a65a;--green-d:#00723e;--paper:#f8f2e0;--ink:#241c12;--mint:#7fd5bd;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
+:root{--green:#00a65a;--green-d:#00723e;--paper:#f8f2e0;--ink:#241c12;--mint:#7fd5bd;--safe-b:calc(env(safe-area-inset-bottom,0px) + var(--inapp-bot,0px));--safe-t:env(safe-area-inset-top,0px)}
 #view{position:fixed;inset:0}#view canvas{display:block;width:100%;height:100%;touch-action:none}
 #speedfx,#hitflash,#danger{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
 #hitflash{opacity:0;box-shadow:inset 0 0 90px 32px #fff5d2}
@@ -128,8 +128,8 @@ h1 span:last-child{font-size:1.32em}
   .note{font-size:14px;margin-top:8px}
   .go{min-height:56px;font-size:20px}
   .memo{padding:22px 16px 10px}.memo h2{font-size:20px;margin-bottom:6px}.memo ol{font-size:14px;gap:6px}.memo li svg{width:28px;height:28px}
-  .stick{width:112px;height:112px;left:14px;bottom:16px}
-  .floss{width:96px;height:116px;right:14px;bottom:20px}.floss .lid{height:40px}.floss small{font-size:15px;bottom:24px}.floss .cut{left:30px}
+  .stick{width:112px;height:112px;left:14px;bottom:calc(16px + var(--inapp-bot,0px))}
+  .floss{width:96px;height:116px;right:14px;bottom:calc(20px + var(--inapp-bot,0px))}.floss .lid{height:40px}.floss small{font-size:15px;bottom:24px}.floss .cut{left:30px}
   .say{font-size:18px;top:92px}
   #momCut{top:140px;width:32vw}
 }
